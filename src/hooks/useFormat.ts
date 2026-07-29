@@ -4,6 +4,14 @@ export function useFormat() {
     return showSymbol ? `Rp${formatted}` : formatted;
   };
 
+  const formatCompactRupiah = (value: number, showSymbol = true): string => {
+    const formatted = new Intl.NumberFormat('id-ID', {
+      notation: 'compact',
+      maximumFractionDigits: 1,
+    }).format(value).replace('M', ' M').replace('B', ' Milyar').replace('T', ' T');
+    return showSymbol ? `Rp ${formatted}` : formatted;
+  };
+
   const formatDate = (dateStr: string): string => {
     if (!dateStr) return '-';
     const d = new Date(dateStr);
@@ -43,5 +51,5 @@ export function useFormat() {
     return `${prefix}${timestamp}${random}`;
   };
 
-  return { formatRupiah, formatDate, formatDateOnly, formatNumber, generateInvoiceNumber, generateId };
+  return { formatRupiah, formatCompactRupiah, formatDate, formatDateOnly, formatNumber, generateInvoiceNumber, generateId };
 }

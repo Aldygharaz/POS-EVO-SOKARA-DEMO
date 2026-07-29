@@ -2,7 +2,9 @@ import { useState, useMemo } from 'react';
 import { useStore } from '@/store/useStore';
 import { useFormat } from '@/hooks/useFormat';
 import type { StockMutation } from '@/types';
-import { Search, ArrowDownLeft, ArrowUpRight, Plus, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Search, ArrowDownLeft, ArrowUpRight, Plus, RefreshCw, AlertTriangle, Filter } from 'lucide-react';
+import { useGSAP } from '@gsap/react';
+import gsap from 'gsap';
 
 export default function StockPage() {
   const { products, stockMutations, addStockMutation, updateProduct, currentUser, addAuditLog } = useStore();
@@ -14,6 +16,7 @@ export default function StockPage() {
   const [mutationType, setMutationType] = useState<'in' | 'out' | 'adjustment'>('in');
   const [quantity, setQuantity] = useState('');
   const [reason, setReason] = useState('');
+  const [mutationFilter, setMutationFilter] = useState<'all' | 'in' | 'out' | 'adjustment' | 'opname'>('all');
 
   const filteredProducts = useMemo(() => {
     let result = products.filter(p => p.isActive);
@@ -23,6 +26,30 @@ export default function StockPage() {
     }
     return result;
   }, [products, searchQuery]);
+
+  useGSAP(() => {
+    gsap.from('.stock-table-row', {
+      y: 10,
+      opacity: 0,
+      stagger: 0.05,
+      ease: 'power2.out',
+      duration: 0.3,
+      clearProps: 'all'
+    });
+  }, [filteredProducts]);
+
+  useGSAP(() => {
+    gsap.from('.mutation-row', {
+      x: -10,
+      opacity: 0,
+      stagger: 0.05,
+      ease: 'power2.out',
+      duration: 0.3,
+      clearProps: 'all'
+    });
+  }, [stockMutations, mutationFilter]);
+
+
 
   const handleSubmit = () => {
     if (!selectedProduct || !quantity || !reason) return;
@@ -105,7 +132,7 @@ export default function StockPage() {
             </thead>
             <tbody>
               {filteredProducts.map(p => (
-                <tr key={p.id} className="pos-table-row">
+                <tr key={p.id} className="pos-table-row stock-table-row">
                   <td className="px-4 py-3 text-sm font-medium text-slate-900 dark:text-slate-100">{p.name}</td>
                   <td className="px-4 py-3 text-xs text-gray-400 font-mono">{p.sku}</td>
                   <td className="px-4 py-3 text-sm font-mono text-right">
@@ -133,13 +160,30 @@ export default function StockPage() {
 
       {/* Recent Mutations */}
       <div className="pos-card p-5">
-        <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-4">Riwayat Mutasi Stok</h3>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Riwayat Mutasi Stok</h3>
+          <div className="flex flex-wrap items-center gap-2">
+            <Filter className="w-4 h-4 text-slate-400 mr-1" />
+            {(['all', 'in', 'out', 'adjustment', 'opname'] as const).map(type => (
+              <button
+                key={type}
+                onClick={() => setMutationFilter(type)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${mutationFilter === type ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+              >
+                {type === 'all' ? 'Semua' : typeIcons[type as keyof typeof typeIcons].label}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="space-y-2">
-          {stockMutations.slice(0, 10).map(m => {
+          {stockMutations
+            .filter(m => mutationFilter === 'all' || m.type === mutationFilter)
+            .slice(0, 10)
+            .map(m => {
             const t = typeIcons[m.type];
             const Icon = t.icon;
             return (
-              <div key={m.id} className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50">
+              <div key={m.id} className="mutation-row flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50">
                 <div className={`w-8 h-8 rounded-lg ${t.bg} flex items-center justify-center flex-shrink-0`}>
                   <Icon className={`w-4 h-4 ${t.color}`} />
                 </div>

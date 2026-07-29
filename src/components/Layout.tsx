@@ -31,6 +31,10 @@ export default function Layout({ children }: LayoutProps) {
         e.preventDefault();
         useStore.getState().setCurrentPage('transactions');
       }
+      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'l') {
+        e.preventDefault();
+        useStore.getState().logout();
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -56,6 +60,13 @@ export default function Layout({ children }: LayoutProps) {
             {children}
           </div>
         </main>
+      </div>
+
+      {/* Global Watermark */}
+      <div className="fixed bottom-4 right-6 z-[100] pointer-events-none opacity-20 dark:opacity-30">
+        <p className="text-xl md:text-3xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest drop-shadow-md">
+          Demo by Aldy Alfarisy
+        </p>
       </div>
     </div>
   );

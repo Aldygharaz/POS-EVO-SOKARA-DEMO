@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { useFormat } from '@/hooks/useFormat';
-import { Search } from 'lucide-react';
+import { Search, Filter } from 'lucide-react';
+import { useGSAP } from '@gsap/react';
+import gsap from 'gsap';
 
 export default function AuditPage() {
   const { auditLogs } = useStore();
@@ -21,6 +23,17 @@ export default function AuditPage() {
     return true;
   });
 
+  useGSAP(() => {
+    gsap.from('.audit-table-row', {
+      y: 10,
+      opacity: 0,
+      stagger: 0.05,
+      ease: 'power2.out',
+      duration: 0.3,
+      clearProps: 'all'
+    });
+  }, [filteredLogs]);
+
   const actionColors: Record<string, string> = {
     LOGIN: 'pos-badge-blue',
     LOGOUT: 'pos-badge-blue',
@@ -37,7 +50,7 @@ export default function AuditPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-xl font-semibold text-white">Audit Log</h2>
+        <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Audit Log</h2>
         <p className="text-sm text-gray-500 mt-0.5">Riwayat aktivitas sistem</p>
       </div>
 
@@ -52,15 +65,16 @@ export default function AuditPage() {
             className="pos-input w-full pl-10"
           />
         </div>
-        <div className="flex gap-2 overflow-x-auto">
+        <div className="flex flex-wrap items-center gap-2">
+          <Filter className="w-4 h-4 text-slate-400 mr-1" />
           {['', 'LOGIN', 'CREATE', 'UPDATE', 'DELETE', 'STOCK', 'TRANSACTION'].map(f => (
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+              className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
                 filter === f
-                  ? 'bg-[#00FF41]/10 text-[#00FF41] border border-[#00FF41]/20'
-                  : 'bg-[#111111] text-gray-400 border border-white/5 hover:text-white'
+                  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400'
+                  : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
               }`}
             >
               {f || 'Semua'}
@@ -73,7 +87,7 @@ export default function AuditPage() {
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-white/10 bg-[#111111]">
+              <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
                 <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-4 py-3">Waktu</th>
                 <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-4 py-3">Aksi</th>
                 <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-4 py-3">Entitas</th>
@@ -83,23 +97,23 @@ export default function AuditPage() {
             </thead>
             <tbody>
               {filteredLogs.map(log => (
-                <tr key={log.id} className="pos-table-row">
-                  <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">{formatDate(log.createdAt)}</td>
+                <tr key={log.id} className="pos-table-row audit-table-row">
+                  <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{formatDate(log.createdAt)}</td>
                   <td className="px-4 py-3">
                     <span className={`${actionColors[log.action] || 'pos-badge-blue'} text-[10px]`}>
                       {log.action}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-white">{log.entityType}</td>
+                  <td className="px-4 py-3 text-sm text-slate-900 dark:text-slate-100">{log.entityType}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-[#00FF41]/10 flex items-center justify-center">
-                        <span className="text-[9px] font-semibold text-[#00FF41]">{log.userName?.charAt(0)}</span>
+                      <div className="w-6 h-6 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                        <span className="text-[9px] font-semibold text-emerald-600 dark:text-emerald-500">{log.userName?.charAt(0)}</span>
                       </div>
-                      <span className="text-sm text-white">{log.userName}</span>
+                      <span className="text-sm text-slate-900 dark:text-slate-100">{log.userName}</span>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-xs text-gray-400 max-w-[200px] truncate">
+                  <td className="px-4 py-3 text-xs text-gray-500 max-w-[200px] truncate">
                     {log.reason || (log.newValue ? log.newValue.slice(0, 50) : '-')}
                   </td>
                 </tr>

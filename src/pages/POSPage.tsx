@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useStore } from '@/store/useStore';
 import { useFormat } from '@/hooks/useFormat';
 import type { Product, CartItem, PaymentMethod, Transaction } from '@/types';
@@ -6,6 +6,11 @@ import {
   Search, Plus, Minus, Trash2, Receipt, CreditCard,
   Banknote, QrCode, Monitor, X, Check, User, Tag, Printer
 } from 'lucide-react';
+import { toast } from 'sonner';
+import InteractiveTiltCard from '@/components/ui/InteractiveTiltCard';
+import PokaYokeModal from '@/components/ui/PokaYokeModal';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
 
 export default function POSPage() {
   const { products, cart, addToCart, removeFromCart, updateCartQty, clearCart, currentUser, customers, addTransaction, addAuditLog, settings, categories } = useStore();
@@ -23,10 +28,131 @@ export default function POSPage() {
   const [lastTransaction, setLastTransaction] = useState<Transaction | null>(null);
   const [activeKeys, setActiveKeys] = useState<Set<string>>(new Set());
   const inputRef = useRef<HTMLInputElement>(null);
+  const container = useRef<HTMLDivElement>(null);
+
+  const [pokaYoke, setPokaYoke] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    product?: Product;
+    maxQty?: number;
+  }>({ isOpen: false, title: '', message: '' });
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+
+  const cartSummary = useMemo(() => {
+    const subtotal = cart.reduce((s, item) => s + item.subtotal, 0);
+    const totalDiscount = discount;
+    const taxableAmount = subtotal - totalDiscount;
+    const totalTax = settings.taxRate > 0 ? Math.round(taxableAmount * settings.taxRate / 100) : 0;
+    const total = taxableAmount + totalTax;
+    return { subtotal, totalDiscount, totalTax, total };
+  }, [cart, discount, settings.taxRate]);
+
+  const finalTotal = useMemo(() => {
+    if (paymentMethod === 'cash') {
+      return Math.round(cartSummary.total / 100) * 100;
+    }
+    return cartSummary.total;
+  }, [cartSummary.total, paymentMethod]);
+
+  const handleAddToCartWithValidation = useCallback((product: Product, qty = 1) => {
+    const existingInCart = cart.find(i => i.productId === product.id);
+    const currentCartQty = existingInCart ? existingInCart.quantity : 0;
+    if (currentCartQty + qty > product.currentStock) {
+      setPokaYoke({
+        isOpen: true,
+        title: 'Stok Tidak Mencukupi!',
+        message: `Stok ${product.name} tersisa ${product.currentStock} ${product.unit}. Anda mencoba mengambil total ${currentCartQty + qty}.`,
+        product,
+        maxQty: product.currentStock,
+      });
+      return;
+    }
+    addToCart(product, qty);
+    toast.success(`${product.name} ditambahkan ke keranjang`);
+  }, [cart, addToCart]);
+
+  // Barcode Scanner & Global POS Keyboard Shortcuts
+  useEffect(() => {
+    let barcodeBuffer = '';
+    let lastKeyTime = Date.now();
+
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Handle F1, F2, F4, Esc shortcuts
+      if (e.key === 'F1') {
+        e.preventDefault();
+        inputRef.current?.focus();
+        toast.info('Shortcut: Search Focus');
+        return;
+      }
+      if (e.key === 'F2') {
+        e.preventDefault();
+        if (cart.length > 0) {
+          clearCart();
+          toast.info('Shortcut: Keranjang dikosongkan');
+        }
+        return;
+      }
+      if (e.key === 'F4') {
+        e.preventDefault();
+        if (cart.length > 0 && !showPayment) {
+          setShowPayment(true);
+          setPaidAmount('');
+          toast.info('Shortcut: Buka Pembayaran');
+        }
+        return;
+      }
+      if (e.key === 'F8') {
+        e.preventDefault();
+        if (showPayment && paymentMethod === 'cash') {
+          setPaidAmount(finalTotal.toString());
+          toast.info('Shortcut: Uang Pas');
+        }
+        return;
+      }
+      if (e.key === 'Escape') {
+        if (showPayment) {
+          setShowPayment(false);
+          toast.info('Shortcut: Pembayaran Dibatalkan');
+        } else if (searchQuery) {
+          setSearchQuery('');
+        }
+        return;
+      }
+
+      // Ignore if active element is text input or textarea
+      if (document.activeElement instanceof HTMLInputElement || document.activeElement instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      const currentTime = Date.now();
+      if (currentTime - lastKeyTime > 50) {
+        barcodeBuffer = '';
+      }
+      lastKeyTime = currentTime;
+
+      if (e.key === 'Enter') {
+        if (barcodeBuffer.length >= 3) {
+          const matched = products.find(p => p.isActive && (p.barcode === barcodeBuffer || p.sku.toLowerCase() === barcodeBuffer.toLowerCase()));
+          if (matched) {
+            handleAddToCartWithValidation(matched);
+            toast.success(`Scanned: ${matched.name}`);
+          } else {
+            toast.error(`Produk dengan barcode/SKU "${barcodeBuffer}" tidak ditemukan`);
+          }
+        }
+        barcodeBuffer = '';
+      } else if (e.key.length === 1) {
+        barcodeBuffer += e.key;
+      }
+    };
+
+    document.addEventListener('keydown', handleGlobalKeyDown);
+    return () => document.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [products, handleAddToCartWithValidation, showPayment, searchQuery, cart, finalTotal, paymentMethod, clearCart]);
 
   const filteredProducts = useMemo(() => {
     let result = products.filter(p => p.isActive);
@@ -44,19 +170,21 @@ export default function POSPage() {
     return result;
   }, [products, selectedCategory, searchQuery]);
 
-  const cartSummary = useMemo(() => {
-    const subtotal = cart.reduce((s, item) => s + item.subtotal, 0);
-    const totalDiscount = discount;
-    const taxableAmount = subtotal - totalDiscount;
-    const totalTax = settings.taxRate > 0 ? Math.round(taxableAmount * settings.taxRate / 100) : 0;
-    const total = taxableAmount + totalTax;
-    return { subtotal, totalDiscount, totalTax, total };
-  }, [cart, discount, settings.taxRate]);
+  useGSAP(() => {
+    if (filteredProducts.length > 0) {
+      gsap.fromTo('.product-card-anim', 
+        { y: 40, opacity: 0, scale: 0.9 }, 
+        { y: 0, opacity: 1, scale: 1, duration: 0.4, stagger: 0.05, ease: 'back.out(1.5)', clearProps: 'all' }
+      );
+    }
+  }, { scope: container, dependencies: [filteredProducts] });
+
+
 
   const change = useMemo(() => {
     const paid = parseInt(paidAmount.replace(/\D/g, '')) || 0;
-    return paid - cartSummary.total;
-  }, [paidAmount, cartSummary.total]);
+    return paid - finalTotal;
+  }, [paidAmount, finalTotal]);
 
   const handleCheckout = () => {
     if (cart.length === 0) return;
@@ -84,9 +212,9 @@ export default function POSPage() {
       discount: cartSummary.totalDiscount,
       tax: cartSummary.totalTax,
       taxRate: settings.taxRate,
-      total: cartSummary.total,
+      total: finalTotal,
       paymentMethod,
-      paidAmount: paymentMethod === 'cash' ? (parseInt(paidAmount.replace(/\D/g, '')) || cartSummary.total) : cartSummary.total,
+      paidAmount: paymentMethod === 'cash' ? (parseInt(paidAmount.replace(/\D/g, '')) || finalTotal) : finalTotal,
       change: paymentMethod === 'cash' ? Math.max(0, change) : 0,
       isVoided: false,
       createdAt: new Date().toISOString(),
@@ -106,6 +234,7 @@ export default function POSPage() {
       createdAt: new Date().toISOString(),
     });
 
+    toast.success(`Transaksi ${transaction.invoiceNumber} Berhasil!`);
     setLastTransaction(transaction);
     setShowPayment(false);
     setShowReceipt(true);
@@ -161,7 +290,7 @@ export default function POSPage() {
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
     };
-  }, [showPayment, cartSummary.total, change]);
+  }, [showPayment, finalTotal, change]);
 
   const quickAmounts = [5000, 10000, 20000, 50000, 100000];
 
@@ -171,12 +300,22 @@ export default function POSPage() {
       <div className="flex-1 flex flex-col min-h-0">
         {/* Search & Categories */}
         <div className="mb-4 space-y-3">
+          {/* Quick Keyboard Shortcut Bar */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] text-slate-500 dark:text-slate-400">
+            <span className="font-semibold text-slate-400">Shortcuts:</span>
+            <span className="px-2 py-0.5 rounded bg-slate-200/60 dark:bg-slate-800 font-mono font-bold text-slate-700 dark:text-slate-300">F1 Cari</span>
+            <span className="px-2 py-0.5 rounded bg-slate-200/60 dark:bg-slate-800 font-mono font-bold text-slate-700 dark:text-slate-300">F2 Hapus Cart</span>
+            <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-mono font-bold">F4 Bayar</span>
+            <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-mono font-bold">F8 Uang Pas</span>
+            <span className="px-2 py-0.5 rounded bg-slate-200/60 dark:bg-slate-800 font-mono font-bold text-slate-700 dark:text-slate-300">Esc Batal</span>
+          </div>
+
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
             <input
               ref={inputRef}
               type="text"
-              placeholder="Cari produk (nama, SKU, barcode)..."
+              placeholder="Cari produk (F1)... [Nama, SKU, Barcode]"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="pos-input w-full pl-10"
@@ -210,20 +349,21 @@ export default function POSPage() {
         </div>
 
         {/* Product Grid */}
-        <div className="flex-1 overflow-y-auto pos-scrollbar -mx-1 px-1">
+        <div className="flex-1 overflow-y-auto pos-scrollbar -mx-1 px-1" ref={container}>
           {filteredProducts.length === 0 ? (
             <div className="text-center py-12">
               <Search className="w-12 h-12 text-gray-600 mx-auto mb-3" />
               <p className="text-gray-500">Produk tidak ditemukan</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 overflow-hidden p-1">
               {filteredProducts.map(product => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  onClick={() => addToCart(product)}
-                />
+                <div key={product.id} className="product-card-anim">
+                  <ProductCard
+                    product={product}
+                    onClick={() => handleAddToCartWithValidation(product)}
+                  />
+                </div>
               ))}
             </div>
           )}
@@ -312,7 +452,7 @@ export default function POSPage() {
             onClick={() => {
               if (cart.length > 0) {
                 setShowPayment(true);
-                setPaidAmount(cartSummary.total.toString());
+                setPaidAmount('');
               }
             }}
             disabled={cart.length === 0}
@@ -336,9 +476,14 @@ export default function POSPage() {
             </div>
 
             {/* Total Display */}
-            <div className="text-center mb-5 p-4 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+            <div className="text-center mb-5 p-4 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 relative">
               <p className="text-sm text-slate-500">Total Pembayaran</p>
-              <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-500 font-mono mt-1">{formatRupiah(cartSummary.total)}</p>
+              <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-500 font-mono mt-1">{formatRupiah(finalTotal)}</p>
+              {paymentMethod === 'cash' && finalTotal !== cartSummary.total && (
+                <p className="text-[10px] text-slate-400 mt-1 absolute bottom-1 right-2">
+                  *Dibulatkan dari {formatRupiah(cartSummary.total)}
+                </p>
+              )}
             </div>
 
             {/* Payment Methods */}
@@ -381,15 +526,19 @@ export default function POSPage() {
                 {/* Quick Amounts */}
                 <div className="grid grid-cols-3 gap-2 mb-4">
                   <button
-                    onClick={() => setPaidAmount(cartSummary.total.toString())}
-                    className="px-2 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs font-semibold text-emerald-600 dark:text-emerald-500 hover:bg-emerald-500/20 transition-all active:scale-95"
+                    onClick={() => setPaidAmount(finalTotal.toString())}
+                    className="px-2 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs font-semibold text-emerald-600 dark:text-emerald-500 hover:bg-emerald-500/20 transition-all active:scale-95 flex flex-col items-center justify-center gap-0.5"
                   >
-                    Uang Pas
+                    <span>Uang Pas</span>
+                    <span className="text-[9px] opacity-70 font-mono">F8</span>
                   </button>
                   {quickAmounts.map(amt => (
                     <button
                       key={amt}
-                      onClick={() => setPaidAmount(amt.toString())}
+                      onClick={() => {
+                        const current = parseInt(paidAmount) || 0;
+                        setPaidAmount((current + amt).toString());
+                      }}
                       className="px-2 py-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-mono text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:border-emerald-500/30 hover:bg-emerald-500/5 transition-all active:scale-95"
                     >
                       {formatRupiah(amt)}
@@ -455,7 +604,7 @@ export default function POSPage() {
                   )}
                   <div className="mt-4 inline-block px-4 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
                     <p className="text-xs text-slate-500 mb-0.5">Total Tagihan</p>
-                    <p className="text-xl font-bold font-mono text-emerald-600 dark:text-emerald-500">{formatRupiah(cartSummary.total)}</p>
+                    <p className="text-xl font-bold font-mono text-emerald-600 dark:text-emerald-500">{formatRupiah(finalTotal)}</p>
                   </div>
                 </div>
               </div>
@@ -477,7 +626,7 @@ export default function POSPage() {
       {/* Receipt Modal */}
       {showReceipt && lastTransaction && (
         <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-          <div className="pos-card w-full max-w-sm p-6">
+          <div className="pos-card receipt-print w-full max-w-sm p-6">
             <div className="text-center mb-5">
               <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">{settings.storeName}</h3>
               <p className="text-xs text-slate-500">{settings.storeAddress}</p>
@@ -561,6 +710,24 @@ export default function POSPage() {
           </div>
         </div>
       )}
+
+      {/* Poka-Yoke Modal */}
+      <PokaYokeModal
+        isOpen={pokaYoke.isOpen}
+        onClose={() => setPokaYoke({ ...pokaYoke, isOpen: false })}
+        title={pokaYoke.title}
+        message={pokaYoke.message}
+        type="warning"
+        autoFixAction={pokaYoke.product ? {
+          label: `Otomatis Masukkan ${pokaYoke.maxQty} (Max)`,
+          onClick: () => {
+            if (pokaYoke.product && pokaYoke.maxQty) {
+              updateCartQty(pokaYoke.product.id, pokaYoke.maxQty);
+              toast.success(`Jumlah disesuaikan ke stok maksimal (${pokaYoke.maxQty})`);
+            }
+          }
+        } : undefined}
+      />
     </div>
   );
 }
@@ -568,30 +735,30 @@ export default function POSPage() {
 function ProductCard({ product, onClick }: { product: Product; onClick: () => void }) {
   const { formatRupiah } = useFormat();
   return (
-    <button
+    <InteractiveTiltCard
       onClick={onClick}
-      className="pos-card p-3 text-left hover:border-emerald-500/20 dark:hover:border-emerald-500/20 transition-all group active:scale-[0.98]"
+      className="pos-card p-3 text-left hover:border-emerald-500/40 transition-all group active:scale-[0.97]"
     >
-      <div className="aspect-square rounded-lg bg-slate-50 dark:bg-slate-800 mb-2.5 overflow-hidden flex items-center justify-center">
+      <div className="aspect-square rounded-lg bg-slate-50 dark:bg-slate-800/80 mb-2.5 overflow-hidden flex items-center justify-center relative">
         {product.imageUrl ? (
           <img
             src={product.imageUrl}
             alt={product.name}
-            className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform"
+            className="w-full h-full object-contain p-2 group-hover:scale-110 transition-transform duration-300"
           />
         ) : (
-          <Tag className="w-8 h-8 text-slate-400 dark:text-slate-500" />
+          <Tag className="w-8 h-8 text-slate-400 dark:text-slate-500 group-hover:scale-110 transition-transform duration-300" />
         )}
       </div>
-      <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{product.name}</p>
+      <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate group-hover:text-emerald-500 transition-colors">{product.name}</p>
       <p className="text-xs text-slate-500">{product.sku}</p>
-      <p className="text-sm font-mono text-emerald-600 dark:text-emerald-500 mt-1">{formatRupiah(product.sellingPrice)}</p>
+      <p className="text-sm font-mono font-semibold text-emerald-600 dark:text-emerald-400 mt-1">{formatRupiah(product.sellingPrice)}</p>
       {product.currentStock <= product.minStock && (
         <span className="pos-badge-red text-[10px] mt-1.5 inline-flex">
           Stok: {product.currentStock}
         </span>
       )}
-    </button>
+    </InteractiveTiltCard>
   );
 }
 
@@ -629,7 +796,7 @@ function CartItemRow({ item, onUpdateQty, onRemove }: {
             if (!isNaN(val) && val > 0) onUpdateQty(item.productId, val);
             else if (e.target.value === '') onUpdateQty(item.productId, 0); // Allow empty temporarily
           }}
-          onBlur={e => {
+          onBlur={() => {
              if (item.quantity === 0) onUpdateQty(item.productId, 1);
           }}
           className="w-10 text-center text-sm font-mono text-slate-900 dark:text-slate-100 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-emerald-500 focus:outline-none transition-colors"

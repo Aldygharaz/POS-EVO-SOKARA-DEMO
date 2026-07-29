@@ -24,28 +24,33 @@ export default function LoginPage() {
     }, 500);
   };
 
-  const demoUsers = users.filter(u => u.isActive).slice(0, 4);
+  const demoUsers = users.filter(u => u.isActive && u.username === 'demo');
 
   const fillDemo = (u: typeof users[0]) => {
     setUsername(u.username);
-    setPassword('123456');
+    // Jika username demo, passwordnya demo
+    setPassword(u.username === 'demo' ? 'demo' : '123456');
     setError('');
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-4 transition-colors duration-200">
-      <div className="w-full max-w-md">
+    <div className="relative min-h-screen bg-slate-950 flex items-center justify-center p-4 overflow-hidden transition-colors duration-200">
+      {/* Ambient background glow orbs */}
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="relative z-10 w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-emerald-500 mb-4 shadow-[0_0_40px_rgba(16,185,129,0.2)]">
-            <Zap className="w-8 h-8 text-white" />
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 mb-4 shadow-[0_0_40px_rgba(16,185,129,0.3)] ring-1 ring-emerald-400/30">
+            <Zap className="w-8 h-8 text-white animate-pulse" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">POS EVO</h1>
-          <p className="text-sm text-slate-500 mt-1">Enterprise Point of Sale System</p>
+          <h1 className="text-3xl font-black text-slate-100 tracking-tight">Sokara POS</h1>
+          <p className="text-xs font-semibold text-emerald-400 tracking-widest uppercase mt-1">Sokara AI Enterprise Point of Sale</p>
         </div>
 
         {/* Login Card */}
-        <div className="pos-card p-6 md:p-8">
+        <div className="pos-glass-card p-6 md:p-8 shadow-2xl">
           {error && (
             <div className="flex items-center gap-2 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-500 text-sm mb-4">
               <AlertTriangle className="w-4 h-4 flex-shrink-0" />
@@ -104,35 +109,29 @@ export default function LoginPage() {
           </form>
 
           {/* Demo Accounts */}
-          <div className="mt-6 pt-5 border-t border-slate-200 dark:border-slate-800">
-            <p className="text-xs text-slate-500 text-center mb-3">Akun Demo</p>
-            <div className="grid grid-cols-2 gap-2">
-              {demoUsers.map(u => (
-                <button
-                  key={u.id}
-                  type="button"
-                  onClick={() => fillDemo(u)}
-                  className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 hover:border-emerald-500/30 hover:bg-emerald-500/5 transition-all text-left"
-                >
-                  <div className="w-7 h-7 rounded-full bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
-                    <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-500">
-                      {u.name.charAt(0)}
-                    </span>
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-medium text-slate-900 dark:text-slate-100 truncate">{u.name}</p>
-                    <p className="text-[10px] text-slate-500 capitalize">{u.role}</p>
-                  </div>
-                </button>
-              ))}
+          {demoUsers.length > 0 && (
+            <div className="mt-6 pt-5 border-t border-slate-200 dark:border-slate-800">
+              <p className="text-xs text-slate-500 text-center mb-3">Login Instan</p>
+              <div className="grid grid-cols-1 gap-2">
+                {demoUsers.map(u => (
+                  <button
+                    key={u.id}
+                    type="button"
+                    onClick={() => fillDemo(u)}
+                    className="flex items-center justify-center gap-3 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500 hover:text-white transition-all group text-emerald-700 dark:text-emerald-400"
+                  >
+                    <Zap className="w-5 h-5 group-hover:text-white" />
+                    <span className="font-semibold">Masuk sebagai Demo</span>
+                  </button>
+                ))}
+              </div>
             </div>
-            <p className="text-[10px] text-slate-500 text-center mt-2">Password demo: 123456</p>
-          </div>
+          )}
         </div>
 
         {/* Footer */}
         <p className="text-center text-xs text-slate-500 mt-6">
-          POS EVO Enterprise v6.0 &copy; 2025
+          Sokara POS Enterprise v6.0 &copy; 2026 Sokara AI
         </p>
       </div>
     </div>

@@ -2,25 +2,57 @@ import { useState, useMemo } from 'react';
 import { useStore } from '@/store/useStore';
 import { useFormat } from '@/hooks/useFormat';
 import type { Customer } from '@/types';
-import { Search, Plus, Edit2, Trash2, Star } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, Star, Filter, Users, Award } from 'lucide-react';
+import { useGSAP } from '@gsap/react';
+import gsap from 'gsap';
+import InteractiveTiltCard from '@/components/ui/InteractiveTiltCard';
 
 export default function CustomersPage() {
   const { customers, addCustomer, updateCustomer, deleteCustomer } = useStore();
   const { formatRupiah, generateId } = useFormat();
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [membershipFilter, setMembershipFilter] = useState<'all' | 'bronze' | 'silver' | 'gold' | 'platinum'>('all');
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Customer | null>(null);
   const [form, setForm] = useState<Partial<Customer>>({});
 
+  useGSAP(() => {
+    gsap.from('.customer-kpi-card', {
+      y: 15,
+      opacity: 0,
+      stagger: 0.1,
+      ease: 'power3.out',
+      duration: 0.4,
+      clearProps: 'all'
+    });
+  }, []);
+
+  useGSAP(() => {
+    gsap.from('.customer-table-row', {
+      y: 10,
+      opacity: 0,
+      stagger: 0.05,
+      ease: 'power2.out',
+      duration: 0.3,
+      clearProps: 'all'
+    });
+  }, [searchQuery, membershipFilter]);
+
   const filtered = useMemo(() => {
     let result = customers.filter(c => c.isActive);
+    if (membershipFilter !== 'all') {
+      result = result.filter(c => c.membership === membershipFilter);
+    }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(c => c.name.toLowerCase().includes(q) || c.phone?.includes(q) || c.email?.toLowerCase().includes(q));
     }
     return result;
-  }, [customers, searchQuery]);
+  }, [customers, searchQuery, membershipFilter]);
+
+  const totalPoints = useMemo(() => customers.reduce((sum, c) => sum + (c.points || 0), 0), [customers]);
+  const vipCount = useMemo(() => customers.filter(c => c.membership === 'gold' || c.membership === 'platinum').length, [customers]);
 
   const openCreate = () => {
     setEditing(null);
@@ -70,6 +102,60 @@ export default function CustomersPage() {
         </button>
       </div>
 
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <InteractiveTiltCard className="customer-kpi-card pos-card p-5">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+              <Users className="w-6 h-6 text-blue-500" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-500 mb-0.5">Total Pelanggan Aktif</p>
+              <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{customers.length}</h3>
+            </div>
+          </div>
+        </InteractiveTiltCard>
+        
+        <InteractiveTiltCard className="customer-kpi-card pos-card p-5">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+              <Award className="w-6 h-6 text-amber-500" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-500 mb-0.5">Total Poin Beredar</p>
+              <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100 font-mono">{totalPoints.toLocaleString()}</h3>
+            </div>
+          </div>
+        </InteractiveTiltCard>
+
+        <InteractiveTiltCard className="customer-kpi-card pos-card p-5">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
+              <Star className="w-6 h-6 text-cyan-500" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-500 mb-0.5">Pelanggan VIP (Gold+)</p>
+              <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{vipCount}</h3>
+            </div>
+          </div>
+        </InteractiveTiltCard>
+      </div>
+
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <Filter className="w-4 h-4 text-slate-400 mr-1" />
+          {(['all', 'bronze', 'silver', 'gold', 'platinum'] as const).map(tier => (
+            <button
+              key={tier}
+              onClick={() => setMembershipFilter(tier)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors capitalize ${membershipFilter === tier ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+            >
+              {tier === 'all' ? 'Semua' : tier}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
         <input
@@ -96,7 +182,7 @@ export default function CustomersPage() {
             </thead>
             <tbody>
               {filtered.map(c => (
-                <tr key={c.id} className="pos-table-row">
+                <tr key={c.id} className="pos-table-row customer-table-row">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 flex items-center justify-center">

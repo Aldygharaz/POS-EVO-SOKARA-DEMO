@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { useFormat } from '@/hooks/useFormat';
-import { Store, Percent, FileText, Save, AlertTriangle, Target } from 'lucide-react';
+import { Store, Percent, FileText, Save, AlertTriangle, Target, Link2, Users, Database, Trash2, Key } from 'lucide-react';
+import { resetDatabase } from '@/data/seedData';
 
 export default function SettingsPage() {
-  const { settings, updateSettings, currentUser, addAuditLog } = useStore();
+  const { settings, updateSettings, currentUser, addAuditLog, users, updateUser } = useStore();
   const { generateId } = useFormat();
 
   const [form, setForm] = useState({ ...settings });
@@ -166,6 +167,105 @@ export default function SettingsPage() {
               className="pos-input w-full"
             />
           </div>
+        </div>
+      </div>
+
+      {/* Google Sheets Sync */}
+      <div className="pos-card p-5">
+        <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+          <Link2 className="w-4 h-4 text-emerald-600 dark:text-emerald-500" />
+          Integrasi Google Sheets
+        </h3>
+        <div>
+          <label className="block text-sm text-gray-400 mb-1">Webhook URL (Apps Script)</label>
+          <input
+            type="url"
+            value={form.googleSheetsWebhookUrl || ''}
+            onChange={e => setForm(f => ({ ...f, googleSheetsWebhookUrl: e.target.value }))}
+            placeholder="https://script.google.com/macros/s/.../exec"
+            className="pos-input w-full font-mono text-xs"
+          />
+          <p className="text-xs text-gray-500 mt-2">
+            Setiap transaksi baru akan otomatis dikirim ke URL ini secara realtime.
+          </p>
+        </div>
+      </div>
+
+      {/* User Management */}
+      <div className="pos-card p-5">
+        <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+          <Users className="w-4 h-4 text-emerald-600 dark:text-emerald-500" />
+          Manajemen Pengguna (Akun)
+        </h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm text-slate-500 dark:text-slate-400">
+            <thead className="text-xs uppercase bg-slate-50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-300">
+              <tr>
+                <th className="px-4 py-3 rounded-tl-lg rounded-bl-lg font-semibold">Nama</th>
+                <th className="px-4 py-3 font-semibold">Username</th>
+                <th className="px-4 py-3 font-semibold">Role</th>
+                <th className="px-4 py-3 rounded-tr-lg rounded-br-lg font-semibold text-right">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map(u => (
+                <tr key={u.id} className="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50/50 dark:hover:bg-slate-800/20">
+                  <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">{u.name}</td>
+                  <td className="px-4 py-3 text-slate-500">{u.username}</td>
+                  <td className="px-4 py-3 capitalize text-slate-500">{u.role}</td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex items-center justify-end gap-3">
+                      <button 
+                        onClick={() => {
+                          const newPassword = window.prompt(`Masukkan password baru untuk ${u.name}:`);
+                          if (newPassword && newPassword.trim() !== '') {
+                            const hashed = btoa(newPassword + u.salt);
+                            updateUser({ ...u, password: hashed });
+                            alert(`Password untuk ${u.name} berhasil diubah!`);
+                          }
+                        }}
+                        className="text-amber-500 hover:text-amber-600 dark:text-amber-400 dark:hover:text-amber-300"
+                        title="Ganti Password"
+                      >
+                        <Key className="w-4 h-4" />
+                      </button>
+                      <button 
+                        className="text-rose-500 hover:text-rose-600 dark:text-rose-400 dark:hover:text-rose-300 disabled:opacity-30" 
+                        disabled={u.role === 'owner'}
+                        title="Hapus Pengguna"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Database Management */}
+      <div className="pos-card p-5 border-l-4 border-rose-500">
+        <h3 className="text-sm font-semibold text-rose-600 dark:text-rose-500 mb-4 flex items-center gap-2">
+          <Database className="w-4 h-4" />
+          Reset Database (Pemulihan)
+        </h3>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <p className="text-sm text-slate-600 dark:text-slate-300">Kembalikan semua data ke kondisi awal (Data Dummy).</p>
+            <p className="text-xs text-rose-500 mt-1">Peringatan: Semua data transaksi, produk, dan pengaturan saat ini akan terhapus!</p>
+          </div>
+          <button 
+            onClick={() => {
+              if (window.confirm("Apakah Anda yakin ingin me-reset seluruh database ke data demo awal? Semua data saat ini akan hilang permanen!")) {
+                resetDatabase();
+              }
+            }}
+            className="px-4 py-2 bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500 hover:text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            Reset Database Sekarang
+          </button>
         </div>
       </div>
 

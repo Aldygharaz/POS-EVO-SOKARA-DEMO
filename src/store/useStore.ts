@@ -1,6 +1,13 @@
 import { create } from 'zustand';
 import type { User, Product, Category, Customer, Transaction, StockMutation, AuditLog, Supplier, Settings, BusinessTarget, CartItem, AlertItem, UserRole } from '@/types';
 
+interface SyncPayload {
+  action: string;
+  data: unknown;
+  attempts: number;
+  nextRetry: number;
+}
+
 interface POSStore {
   currentUser: User | null;
   users: User[];
@@ -22,6 +29,7 @@ interface POSStore {
   logout: () => void;
   setCurrentPage: (page: string) => void;
   toggleSidebar: () => void;
+  updateUser: (user: User) => void;
 
   addToCart: (product: Product, qty?: number) => void;
   removeFromCart: (productId: string) => void;
@@ -43,6 +51,7 @@ interface POSStore {
 
   addTransaction: (transaction: Transaction) => void;
   voidTransaction: (id: string, reason: string, by: string) => void;
+  processOfflineSyncQueue: () => void;
 
   addStockMutation: (mutation: StockMutation) => void;
   addAuditLog: (log: AuditLog) => void;
@@ -53,6 +62,7 @@ interface POSStore {
 
   markAlertRead: (id: string) => void;
   clearAllAlerts: () => void;
+  factoryReset: () => void;
 }
 
 function loadFromStorage<T>(key: string, fallback: T): T {
@@ -77,12 +87,49 @@ const pagePermissions: Record<string, UserRole[]> = {
   transactions: ['owner', 'admin', 'supervisor', 'kasir'],
   stock: ['owner', 'admin', 'supervisor'],
   reports: ['owner', 'admin', 'supervisor'],
-  analytics: ['owner', 'admin'],
+  analytics: ['owner', 'admin', 'supervisor'],
   suppliers: ['owner', 'admin', 'supervisor'],
   settings: ['owner', 'admin'],
   audit: ['owner', 'admin'],
   users: ['owner', 'admin'],
 };
+
+// Ensure demo user exists in storage for smooth updates
+const initialUsers = loadFromStorage<User[]>('pos_users', []);
+if (initialUsers.length > 0) {
+  const hasDemo = initialUsers.some(u => u.username === 'demo');
+  if (!hasDemo) {
+    const newDemoUser: User = { 
+      id: 'U004', username: 'demo', name: 'Demo Account', 
+      password: 'demo', salt: 'salt004', role: 'supervisor', 
+      isActive: true, createdAt: new Date().toISOString() 
+    };
+    const supIdx = initialUsers.findIndex(u => u.username === 'supervisor');
+    if (supIdx >= 0) initialUsers[supIdx] = newDemoUser;
+    else initialUsers.push(newDemoUser);
+    saveToStorage('pos_users', initialUsers);
+  }
+}
+
+// Settings Migration Guard
+const defaultSettings: Settings = {
+  storeName: 'Sokara POS Store',
+  taxRate: 11,
+  invoicePrefix: 'INV',
+  currency: 'IDR',
+  lowStockThreshold: 10,
+  targetRevenue: 50000000,
+  targetProfit: 10000000,
+  targetTransactions: 1000,
+  targetCustomers: 500,
+  googleSheetsWebhookUrl: 'https://script.google.com/macros/s/AKfycbyGnKxXi3patXY3JKyWCVLFaTqbqjWZIPjExlt6HgZbosEFbiX0nkWAwYjXIFko2U5YvA/exec'
+};
+
+const rawSettings = loadFromStorage<Partial<Settings>>('pos_settings', defaultSettings);
+const migratedSettings: Settings = { ...defaultSettings, ...rawSettings };
+if (JSON.stringify(rawSettings) !== JSON.stringify(migratedSettings)) {
+  saveToStorage('pos_settings', migratedSettings);
+}
 
 export const useStore = create<POSStore>((set, get) => ({
   currentUser: null,
@@ -94,7 +141,7 @@ export const useStore = create<POSStore>((set, get) => ({
   stockMutations: loadFromStorage('pos_stockMutations', []),
   auditLogs: loadFromStorage('pos_auditLogs', []),
   suppliers: loadFromStorage('pos_suppliers', []),
-  settings: loadFromStorage('pos_settings', { storeName: 'Toko', taxRate: 11, invoicePrefix: 'INV', currency: 'IDR', lowStockThreshold: 10, targetRevenue: 50000000, targetProfit: 10000000, targetTransactions: 1000, targetCustomers: 500 }),
+  settings: migratedSettings,
   businessTargets: loadFromStorage('pos_businessTargets', []),
   cart: [],
   alerts: [],
@@ -105,16 +152,19 @@ export const useStore = create<POSStore>((set, get) => ({
     const users = get().users;
     const user = users.find(u => u.username === username);
     if (!user) return false;
+    
+    let isMatch = false;
     const hash = btoa(password + user.salt);
-    if (user.password !== hash && user.password.length > 40) {
-      const updatedUsers = users.map(u =>
-        u.id === user.id ? { ...u, lastLogin: new Date().toISOString() } : u
-      );
-      set({ currentUser: user, users: updatedUsers });
-      saveToStorage('pos_users', updatedUsers);
-      return true;
+
+    if (user.password === password) {
+      isMatch = true;
+    } else if (user.password === hash) {
+      isMatch = true;
+    } else if (password === '123456' && user.password === '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92') {
+      isMatch = true;
     }
-    if (user.password === password || user.password === '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92') {
+
+    if (isMatch) {
       const updatedUsers = users.map(u =>
         u.id === user.id ? { ...u, lastLogin: new Date().toISOString() } : u
       );
@@ -127,6 +177,14 @@ export const useStore = create<POSStore>((set, get) => ({
 
   logout: () => {
     set({ currentUser: null, cart: [], currentPage: 'login' });
+  },
+
+  updateUser: (user: User) => {
+    set(state => {
+      const newUsers = state.users.map(u => u.id === user.id ? user : u);
+      saveToStorage('pos_users', newUsers);
+      return { users: newUsers };
+    });
   },
 
   setCurrentPage: (page: string) => {
@@ -146,20 +204,26 @@ export const useStore = create<POSStore>((set, get) => ({
   addToCart: (product: Product, qty = 1) => {
     set(state => {
       const existing = state.cart.find(item => item.productId === product.id);
+      const currentQty = existing ? existing.quantity : 0;
+      
+      // Poka-Yoke: Defensive bounds checking
+      const safeQty = Math.min(qty, product.currentStock - currentQty);
+      if (safeQty <= 0 && qty > 0) return { cart: state.cart }; // Cannot add more
+
       let newCart;
       if (existing) {
         newCart = state.cart.map(item =>
           item.productId === product.id
-            ? { ...item, quantity: item.quantity + qty, subtotal: (item.quantity + qty) * item.product.sellingPrice - item.discount }
+            ? { ...item, quantity: item.quantity + safeQty, subtotal: (item.quantity + safeQty) * item.product.sellingPrice - item.discount }
             : item
         );
       } else {
         newCart = [...state.cart, {
           productId: product.id,
           product,
-          quantity: qty,
+          quantity: safeQty,
           discount: 0,
-          subtotal: qty * product.sellingPrice,
+          subtotal: safeQty * product.sellingPrice,
         }];
       }
       return { cart: newCart };
@@ -175,13 +239,21 @@ export const useStore = create<POSStore>((set, get) => ({
       get().removeFromCart(productId);
       return;
     }
-    set(state => ({
-      cart: state.cart.map(item =>
-        item.productId === productId
-          ? { ...item, quantity: qty, subtotal: qty * item.product.sellingPrice - item.discount }
-          : item
-      ),
-    }));
+    set(state => {
+      // Poka-Yoke: Ensure qty does not exceed stock
+      const product = state.products.find(p => p.id === productId);
+      if (!product) return { cart: state.cart };
+      
+      const safeQty = Math.min(qty, product.currentStock);
+      
+      return {
+        cart: state.cart.map(item =>
+          item.productId === productId
+            ? { ...item, quantity: safeQty, subtotal: safeQty * item.product.sellingPrice - item.discount }
+            : item
+        ),
+      };
+    });
   },
 
   clearCart: () => set({ cart: [] }),
@@ -271,20 +343,188 @@ export const useStore = create<POSStore>((set, get) => ({
   },
 
   addTransaction: (transaction: Transaction) => {
+    const webhookUrl = get().settings.googleSheetsWebhookUrl;
+
     set(state => {
+      // 1. Update product stock
+      const updatedProducts = state.products.map(product => {
+        const cartItem = transaction.items.find(item => item.productId === product.id);
+        if (cartItem) {
+          return {
+            ...product,
+            currentStock: Math.max(0, product.currentStock - cartItem.quantity)
+          };
+        }
+        return product;
+      });
+
+      // 2. Create StockMutations for each item sold
+      const now = new Date().toISOString();
+      const newMutations: StockMutation[] = transaction.items.map((item, index) => {
+        const prod = state.products.find(p => p.id === item.productId);
+        const beforeStock = prod ? prod.currentStock : item.quantity;
+        return {
+          id: `SM-${Date.now()}-${index}`,
+          productId: item.productId,
+          productName: item.productName,
+          type: 'out' as const,
+          quantity: -item.quantity,
+          beforeStock,
+          afterStock: Math.max(0, beforeStock - item.quantity),
+          reason: `Penjualan (Inv: ${transaction.invoiceNumber})`,
+          referenceId: transaction.id,
+          createdBy: transaction.cashierId,
+          createdByName: transaction.cashierName,
+          createdAt: now,
+        };
+      });
+
       const newTransactions = [transaction, ...state.transactions];
+      const newStockMutations = [...state.stockMutations, ...newMutations];
+
       saveToStorage('pos_transactions', newTransactions);
-      return { transactions: newTransactions, cart: [] };
+      saveToStorage('pos_products', updatedProducts);
+      saveToStorage('pos_stockMutations', newStockMutations);
+
+      return {
+        transactions: newTransactions,
+        products: updatedProducts,
+        stockMutations: newStockMutations,
+        cart: []
+      };
+    });
+
+    // 3. Webhook sync with offline queue fallback
+    if (webhookUrl) {
+      const totalProfit = transaction.items.reduce((sum, item) => sum + ((item.price - item.costPrice) * item.quantity) - item.discount, 0) - transaction.discount;
+      
+      const payload = {
+        type: 'FULL_TRANSACTION',
+        transaction: {
+          ...transaction,
+          totalProfit
+        }
+      };
+
+      const sendWebhook = (data: typeof payload) => {
+        return fetch(webhookUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'text/plain;charset=utf-8',
+          },
+          body: JSON.stringify(data)
+        });
+      };
+
+      sendWebhook(payload).catch(err => {
+        console.warn("Google Sheets Sync Offline, saving to queue:", err);
+        const queue = loadFromStorage<SyncPayload[]>('pos_pendingSync', []);
+        queue.push({
+          action: 'transaction',
+          data: payload,
+          attempts: 0,
+          nextRetry: Date.now() + 60000 // Retry after 1 minute
+        });
+        saveToStorage('pos_pendingSync', queue);
+      });
+    }
+  },
+
+  processOfflineSyncQueue: () => {
+    const webhookUrl = get().settings.googleSheetsWebhookUrl;
+    if (!webhookUrl) return;
+
+    const queue = loadFromStorage<SyncPayload[]>('pos_pendingSync', []);
+    if (queue.length === 0) return;
+
+    const now = Date.now();
+    const readyToSync = queue.filter(item => now >= item.nextRetry);
+    const notReady = queue.filter(item => now < item.nextRetry);
+    
+    if (readyToSync.length === 0) return;
+
+    const remainingQueue: SyncPayload[] = [...notReady];
+    
+    Promise.allSettled(
+      readyToSync.map(payload =>
+        fetch(webhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload.data)
+        }).then(res => {
+          if (!res.ok) throw new Error('Network response was not ok');
+          return res;
+        })
+      )
+    ).then(results => {
+      results.forEach((res, idx) => {
+        if (res.status === 'rejected') {
+          const failedPayload = readyToSync[idx];
+          if (failedPayload.attempts < 5) {
+            remainingQueue.push({
+              ...failedPayload,
+              attempts: failedPayload.attempts + 1,
+              nextRetry: Date.now() + Math.pow(2, failedPayload.attempts + 1) * 60000
+            });
+          }
+        }
+      });
+      saveToStorage('pos_pendingSync', remainingQueue);
     });
   },
 
   voidTransaction: (id: string, reason: string, by: string) => {
     set(state => {
+      const targetTx = state.transactions.find(t => t.id === id);
+      if (!targetTx || targetTx.isVoided) return {};
+
+      // 1. Restore product stock
+      const updatedProducts = state.products.map(product => {
+        const item = targetTx.items.find(i => i.productId === product.id);
+        if (item) {
+          return {
+            ...product,
+            currentStock: product.currentStock + item.quantity
+          };
+        }
+        return product;
+      });
+
+      // 2. Create StockMutations for restored stock
+      const now = new Date().toISOString();
+      const restoreMutations: StockMutation[] = targetTx.items.map((item, index) => {
+        const prod = state.products.find(p => p.id === item.productId);
+        const beforeStock = prod ? prod.currentStock : 0;
+        return {
+          id: `SM-VOID-${Date.now()}-${index}`,
+          productId: item.productId,
+          productName: item.productName,
+          type: 'in' as const,
+          quantity: item.quantity,
+          beforeStock,
+          afterStock: beforeStock + item.quantity,
+          reason: `Void Transaksi (${targetTx.invoiceNumber}): ${reason}`,
+          referenceId: targetTx.id,
+          createdBy: by,
+          createdByName: by,
+          createdAt: now,
+        };
+      });
+
       const newTransactions = state.transactions.map(t =>
-        t.id === id ? { ...t, isVoided: true, voidReason: reason, voidedAt: new Date().toISOString(), voidedBy: by } : t
+        t.id === id ? { ...t, isVoided: true, voidReason: reason, voidedAt: now, voidedBy: by } : t
       );
+      const newStockMutations = [...state.stockMutations, ...restoreMutations];
+
       saveToStorage('pos_transactions', newTransactions);
-      return { transactions: newTransactions };
+      saveToStorage('pos_products', updatedProducts);
+      saveToStorage('pos_stockMutations', newStockMutations);
+
+      return {
+        transactions: newTransactions,
+        products: updatedProducts,
+        stockMutations: newStockMutations
+      };
     });
   },
 
@@ -313,17 +553,23 @@ export const useStore = create<POSStore>((set, get) => ({
   },
 
   hasPermission: (permission: string) => {
-    const { currentUser } = get();
-    if (!currentUser) return false;
-    const allowedRoles = pagePermissions[permission] || ['owner', 'admin'];
-    return allowedRoles.includes(currentUser.role);
+    const user = get().currentUser;
+    if (!user) return false;
+    // Blokir settings untuk user demo
+    if (user.username === 'demo' && permission === 'settings') return false;
+    return pagePermissions[permission]?.includes(user.role) ?? false;
   },
 
-  markAlertRead: (id: string) => {
-    set(state => ({
-      alerts: state.alerts.map(a => a.id === id ? { ...a, isRead: true } : a),
-    }));
-  },
+  markAlertRead: (id: string) => set(state => ({
+    alerts: state.alerts.map(a => a.id === id ? { ...a, isRead: true } : a)
+  })),
 
-  clearAllAlerts: () => set({ alerts: [] }),
+  clearAllAlerts: () => set(state => ({
+    alerts: state.alerts.map(a => ({ ...a, isRead: true }))
+  })),
+
+  factoryReset: () => {
+    localStorage.clear();
+    window.location.reload();
+  }
 }));

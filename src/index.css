@@ -68,51 +68,55 @@
 
 @layer components {
   .pos-card {
-    @apply bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800/80 transition-colors duration-200;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+    @apply bg-white dark:bg-slate-900/90 rounded-xl border border-slate-200/80 dark:border-slate-800/80 transition-all duration-300;
+    box-shadow: 0 4px 20px -2px rgba(0,0,0,0.03), 0 2px 6px -1px rgba(0,0,0,0.02);
   }
   .dark .pos-card {
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05), 0 4px 24px rgba(0,0,0,0.5);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 8px 32px -4px rgba(0,0,0,0.6);
+  }
+  .pos-glass-card {
+    @apply bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/60 dark:border-slate-800/80 rounded-xl transition-all duration-300;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.08);
   }
   .pos-input {
-    @apply bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500/40 transition-all;
+    @apply bg-slate-50/80 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 rounded-lg px-4 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500/60 transition-all duration-200;
   }
   .pos-btn-primary {
-    @apply bg-emerald-600 dark:bg-emerald-500 text-white font-semibold px-4 py-2.5 rounded-lg hover:bg-emerald-700 dark:hover:bg-emerald-400 active:scale-[0.98] transition-all;
+    @apply bg-gradient-to-r from-emerald-600 to-emerald-500 dark:from-emerald-500 dark:to-emerald-400 text-white dark:text-slate-950 font-semibold px-4 py-2.5 rounded-lg hover:shadow-lg hover:shadow-emerald-500/25 active:scale-[0.98] transition-all duration-200;
   }
   .pos-btn-secondary {
-    @apply bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 px-4 py-2.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 active:scale-[0.98] transition-all;
+    @apply bg-white dark:bg-slate-800/90 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700/80 px-4 py-2.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 active:scale-[0.98] transition-all duration-200;
   }
   .pos-btn-danger {
-    @apply bg-rose-500/10 text-rose-500 dark:bg-rose-500/10 dark:text-rose-400 border border-rose-500/20 px-4 py-2.5 rounded-lg hover:bg-rose-500/20 active:scale-[0.98] transition-all;
+    @apply bg-rose-500/10 text-rose-600 dark:bg-rose-500/15 dark:text-rose-400 border border-rose-500/20 px-4 py-2.5 rounded-lg hover:bg-rose-500/25 active:scale-[0.98] transition-all duration-200;
   }
   .pos-table-row {
-    @apply border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors;
+    @apply border-b border-slate-100 dark:border-slate-800/60 hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors duration-150;
   }
   .pos-badge {
-    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium;
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold tracking-wide transition-all;
   }
   .pos-badge-green {
-    @apply pos-badge bg-emerald-500/10 text-emerald-600 dark:text-emerald-400;
+    @apply pos-badge bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20;
   }
   .pos-badge-red {
-    @apply pos-badge bg-rose-500/10 text-rose-600 dark:text-rose-400;
+    @apply pos-badge bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20;
   }
   .pos-badge-amber {
-    @apply pos-badge bg-amber-500/10 text-amber-600 dark:text-amber-400;
+    @apply pos-badge bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20;
   }
   .pos-badge-blue {
-    @apply pos-badge bg-blue-500/10 text-blue-600 dark:text-blue-400;
+    @apply pos-badge bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20;
   }
   .pos-scrollbar::-webkit-scrollbar {
-    width: 6px;
+    width: 5px;
   }
   .pos-scrollbar::-webkit-scrollbar-track {
     background: transparent;
   }
   .pos-scrollbar::-webkit-scrollbar-thumb {
-    @apply bg-slate-300 dark:bg-slate-700;
-    border-radius: 3px;
+    @apply bg-slate-300/80 dark:bg-slate-700/80;
+    border-radius: 4px;
   }
   .pos-scrollbar::-webkit-scrollbar-thumb:hover {
     @apply bg-slate-400 dark:bg-slate-600;
@@ -171,9 +175,7 @@
   justify-content: center;
   align-items: center;
   width: 100%;
-  background-color: theme('colors.slate.900');
-  padding: 20px;
-  border-radius: 12px;
+  padding: 12px;
 }
 
 .pos-keyboard {
@@ -188,21 +190,24 @@
 }
 
 .pos-key {
+  @apply bg-white text-slate-700 dark:bg-slate-800 dark:text-slate-100;
   display: flex;
   justify-content: center;
   align-items: center;
   height: 56px;
-  background-color: theme('colors.slate.800');
-  border-radius: 6px;
-  color: theme('colors.slate.100');
+  border-radius: 8px;
   font-size: 20px;
   font-weight: 600;
   font-family: 'Inter', sans-serif;
   cursor: pointer;
   user-select: none;
   position: relative;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.1), 0 4px 0 #000000, 0 5px 8px rgba(0,0,0,0.4);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.8), 0 4px 0 theme('colors.slate.200'), 0 5px 8px rgba(0,0,0,0.05);
   transition: all 0.05s ease;
+}
+
+.dark .pos-key {
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.1), 0 4px 0 #000000, 0 5px 8px rgba(0,0,0,0.4);
 }
 
 .pos-key span {
@@ -212,6 +217,11 @@
 .pos-key:active,
 .pos-key.active {
   transform: translateY(4px);
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.05), 0 0 0 theme('colors.slate.200');
+}
+
+.dark .pos-key:active,
+.dark .pos-key.active {
   box-shadow: inset 0 2px 4px rgba(0,0,0,0.8), 0 0 0 #000000;
 }
 
@@ -220,7 +230,7 @@
 }
 
 .pos-key-red {
-  color: theme('colors.rose.500');
+  @apply text-rose-500 dark:text-rose-400;
 }
 
 /* Print Receipt */
@@ -252,3 +262,40 @@
     display: none !important;
   }
 }
+
+/* Offline Badge */
+.offline-badge {
+  @apply fixed bottom-4 left-4 z-50 bg-rose-500 text-white px-3 py-1.5 rounded-full shadow-lg shadow-rose-500/20 text-xs font-semibold flex items-center gap-1.5 transition-all duration-300 transform;
+}
+.offline-badge.visible {
+  @apply translate-y-0 opacity-100;
+}
+.offline-badge.hidden {
+  @apply translate-y-10 opacity-0 pointer-events-none;
+}
+
+/* Poka-Yoke Animations */
+.modal-overlay {
+  @apply fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 opacity-0 transition-opacity duration-300;
+}
+.modal-overlay.open {
+  @apply opacity-100;
+}
+.modal-content {
+  @apply bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-md overflow-hidden transform scale-95 opacity-0 transition-all duration-300;
+  transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.modal-overlay.open .modal-content {
+  @apply scale-100 opacity-100;
+}
+
+/* Helper animation for bouncy pop-ups */
+@keyframes spring-bounce {
+  0% { transform: scale(0.95); opacity: 0; }
+  50% { transform: scale(1.02); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.animate-spring {
+  animation: spring-bounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+

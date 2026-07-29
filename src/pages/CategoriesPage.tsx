@@ -3,6 +3,9 @@ import { useStore } from '@/store/useStore';
 import { useFormat } from '@/hooks/useFormat';
 import type { Category } from '@/types';
 import { Plus, Edit2, Trash2, Tag } from 'lucide-react';
+import InteractiveTiltCard from '@/components/ui/InteractiveTiltCard';
+import { useGSAP } from '@gsap/react';
+import gsap from 'gsap';
 
 export default function CategoriesPage() {
   const { categories, products, addCategory, updateCategory, deleteCategory } = useStore();
@@ -12,6 +15,18 @@ export default function CategoriesPage() {
   const [editing, setEditing] = useState<Category | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+
+  useGSAP(() => {
+    gsap.from('.category-card', {
+      y: 20,
+      opacity: 0,
+      scale: 0.95,
+      stagger: 0.05,
+      ease: 'back.out(1.2)',
+      duration: 0.4,
+      clearProps: 'all'
+    });
+  }, [categories]);
 
   const openCreate = () => {
     setEditing(null);
@@ -61,11 +76,11 @@ export default function CategoriesPage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {categories.map(cat => {
-          const productCount = products.filter(p => p.categoryId === cat.id && p.isActive).length;
+          const count = products.filter(p => p.categoryId === cat.id && p.isActive).length;
           return (
-            <div key={cat.id} className="pos-card p-5">
+            <InteractiveTiltCard key={cat.id} className="category-card pos-card p-5 group flex flex-col h-full">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
@@ -73,10 +88,10 @@ export default function CategoriesPage() {
                   </div>
                   <div>
                     <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{cat.name}</h3>
-                    <p className="text-xs text-gray-500">{productCount} produk</p>
+                    <p className="text-xs text-gray-500">{count} produk</p>
                   </div>
                 </div>
-                <div className="flex gap-1">
+                <div className="flex gap-1 z-20">
                   <button onClick={() => openEdit(cat)} className="p-1.5 rounded-md hover:bg-emerald-500/10 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-500">
                     <Edit2 className="w-3.5 h-3.5" />
                   </button>
@@ -88,7 +103,7 @@ export default function CategoriesPage() {
               {cat.description && (
                 <p className="text-xs text-gray-500 mt-2">{cat.description}</p>
               )}
-            </div>
+            </InteractiveTiltCard>
           );
         })}
       </div>

@@ -152,6 +152,7 @@ export interface Settings {
   targetProfit?: number;
   targetTransactions?: number;
   targetCustomers?: number;
+  googleSheetsWebhookUrl?: string;
 }
 
 export interface Supplier {

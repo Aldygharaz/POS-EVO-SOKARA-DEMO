@@ -2,7 +2,10 @@ import { useState, useMemo } from 'react';
 import { useStore } from '@/store/useStore';
 import { useFormat } from '@/hooks/useFormat';
 import { FileText, Download, TrendingUp, DollarSign, ShoppingCart } from 'lucide-react';
+import InteractiveTiltCard from '@/components/ui/InteractiveTiltCard';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { useGSAP } from '@gsap/react';
+import gsap from 'gsap';
 
 const COLORS = ['#10b981', '#059669', '#047857', '#065f46', '#064e3b'];
 
@@ -11,6 +14,18 @@ export default function ReportsPage() {
   const { formatRupiah } = useFormat();
 
   const [period, setPeriod] = useState('week');
+
+  useGSAP(() => {
+    gsap.from('.report-card', {
+      y: 20,
+      opacity: 0,
+      scale: 0.95,
+      stagger: 0.05,
+      ease: 'back.out(1.2)',
+      duration: 0.4,
+      clearProps: 'all'
+    });
+  }, [period]);
 
   const filteredTransactions = useMemo(() => {
     const now = new Date();
@@ -122,7 +137,6 @@ export default function ReportsPage() {
         ))}
       </div>
 
-      {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: 'Revenue', value: summary.revenue, icon: DollarSign, color: '#10b981' },
@@ -130,7 +144,7 @@ export default function ReportsPage() {
           { label: 'Transaksi', value: summary.count, icon: ShoppingCart, color: '#10b981' },
           { label: 'Rata-rata Order', value: summary.avgOrder, icon: FileText, color: '#10b981' },
         ].map((card, i) => (
-          <div key={i} className="pos-card p-4">
+          <InteractiveTiltCard key={i} className="report-card pos-card p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-slate-500">{card.label}</p>
@@ -142,13 +156,12 @@ export default function ReportsPage() {
                 <card.icon className="w-5 h-5" style={{ color: card.color }} />
               </div>
             </div>
-          </div>
+          </InteractiveTiltCard>
         ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Daily Chart */}
-        <div className="pos-card p-5">
+        <InteractiveTiltCard className="report-card pos-card p-5">
           <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-4">Tren Harian</h3>
           <ResponsiveContainer width="100%" height={250}>
             <BarChart data={dailyData}>
@@ -159,10 +172,9 @@ export default function ReportsPage() {
               <Bar dataKey="revenue" fill="#10b981" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
-        </div>
+        </InteractiveTiltCard>
 
-        {/* Top Products */}
-        <div className="pos-card p-5">
+        <InteractiveTiltCard className="report-card pos-card p-5">
           <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-4">Produk Terlaris</h3>
           <div className="space-y-3">
             {topProducts.map((p, i) => (
@@ -177,11 +189,10 @@ export default function ReportsPage() {
             ))}
             {topProducts.length === 0 && <p className="text-sm text-slate-500 text-center py-4">Tidak ada data</p>}
           </div>
-        </div>
+        </InteractiveTiltCard>
       </div>
 
-      {/* Category Pie */}
-      <div className="pos-card p-5">
+      <InteractiveTiltCard className="report-card pos-card p-5">
         <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-4">Penjualan per Kategori</h3>
         <div className="flex flex-col sm:flex-row items-center gap-6">
           <ResponsiveContainer width={200} height={200}>
@@ -202,7 +213,7 @@ export default function ReportsPage() {
             ))}
           </div>
         </div>
-      </div>
+      </InteractiveTiltCard>
     </div>
   );
 }

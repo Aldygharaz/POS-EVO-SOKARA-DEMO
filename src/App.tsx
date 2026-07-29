@@ -1,19 +1,22 @@
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { useStore } from '@/store/useStore';
 import { initializeData } from '@/data/seedData';
 import Layout from '@/components/Layout';
-import LoginPage from '@/pages/LoginPage';
-import DashboardPage from '@/pages/DashboardPage';
-import POSPage from '@/pages/POSPage';
-import ProductsPage from '@/pages/ProductsPage';
-import CategoriesPage from '@/pages/CategoriesPage';
-import CustomersPage from '@/pages/CustomersPage';
-import TransactionsPage from '@/pages/TransactionsPage';
-import StockPage from '@/pages/StockPage';
-import ReportsPage from '@/pages/ReportsPage';
-import AnalyticsPage from '@/pages/AnalyticsPage';
-import SettingsPage from '@/pages/SettingsPage';
-import AuditPage from '@/pages/AuditPage';
+import { Toaster, toast } from 'sonner';
+
+// Code-splitting via React.lazy for performance optimization
+const LoginPage = lazy(() => import('@/pages/LoginPage'));
+const DashboardPage = lazy(() => import('@/pages/DashboardPage'));
+const POSPage = lazy(() => import('@/pages/POSPage'));
+const ProductsPage = lazy(() => import('@/pages/ProductsPage'));
+const CategoriesPage = lazy(() => import('@/pages/CategoriesPage'));
+const CustomersPage = lazy(() => import('@/pages/CustomersPage'));
+const TransactionsPage = lazy(() => import('@/pages/TransactionsPage'));
+const StockPage = lazy(() => import('@/pages/StockPage'));
+const ReportsPage = lazy(() => import('@/pages/ReportsPage'));
+const AnalyticsPage = lazy(() => import('@/pages/AnalyticsPage'));
+const SettingsPage = lazy(() => import('@/pages/SettingsPage'));
+const AuditPage = lazy(() => import('@/pages/AuditPage'));
 
 function App() {
   const { currentUser, currentPage, setCurrentPage } = useStore();
@@ -29,6 +32,14 @@ function App() {
         localStorage.removeItem('pos_currentUser');
       }
     }
+    
+    // Auto-sync offline queue when internet connection restores
+    const handleOnline = () => {
+      useStore.getState().processOfflineSyncQueue();
+      toast.success("Koneksi terhubung kembali! Mengirim data transaksi tertunda...");
+    };
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
   }, []);
 
   useEffect(() => {
@@ -67,13 +78,36 @@ function App() {
   };
 
   if (!currentUser) {
-    return <LoginPage />;
+    return (
+      <Suspense fallback={<PageSkeleton />}>
+        <LoginPage />
+      </Suspense>
+    );
   }
 
   return (
-    <Layout>
-      {renderPage()}
-    </Layout>
+    <>
+      <Layout>
+        <Toaster position="top-right" richColors />
+        <Suspense fallback={<PageSkeleton />}>
+          {renderPage()}
+        </Suspense>
+      </Layout>
+    </>
+  );
+}
+
+function PageSkeleton() {
+  return (
+    <div className="p-6 space-y-4 animate-pulse">
+      <div className="h-8 bg-slate-200 dark:bg-slate-800 rounded-lg w-48 mb-6" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[1, 2, 3, 4].map(i => (
+          <div key={i} className="h-28 bg-slate-200 dark:bg-slate-800 rounded-xl" />
+        ))}
+      </div>
+      <div className="h-64 bg-slate-200 dark:bg-slate-800 rounded-xl mt-6" />
+    </div>
   );
 }
 

@@ -1,29 +1,59 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import { useGSAP } from '@gsap/react';
+import gsap from 'gsap';
 import { useStore } from '@/store/useStore';
 import { useFormat } from '@/hooks/useFormat';
 import type { Product } from '@/types';
 import {
   Search, Plus, Edit2, Trash2, ChevronLeft, ChevronRight,
-  Package, AlertTriangle
+  Package, AlertTriangle, Filter
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function ProductsPage() {
   const { products, categories, addProduct, updateProduct, deleteProduct, currentUser, addAuditLog } = useStore();
   const { formatRupiah, generateId } = useFormat();
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [stockFilter, setStockFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const [form, setForm] = useState<Partial<Product>>({
     name: '', sku: '', barcode: '', categoryId: '', purchasePrice: 0, sellingPrice: 0,
     currentStock: 0, minStock: 0, unit: 'pcs', imageUrl: '', isActive: true,
   });
 
+  // Global Keyboard Shortcut for Filter Reset
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        setSearchQuery('');
+        setStockFilter('all');
+        setCategoryFilter('all');
+        setPage(1);
+        toast.info('Shortcut: Filter direset');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const filteredProducts = useMemo(() => {
     let result = products.filter(p => p.isActive);
+    if (categoryFilter !== 'all') {
+      result = result.filter(p => p.categoryId === categoryFilter);
+    }
+    if (stockFilter === 'low') {
+      result = result.filter(p => p.currentStock > 0 && p.currentStock <= p.minStock);
+    } else if (stockFilter === 'out') {
+      result = result.filter(p => p.currentStock === 0);
+    }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(p =>
@@ -31,10 +61,19 @@ export default function ProductsPage() {
       );
     }
     return result;
-  }, [products, searchQuery]);
+  }, [products, searchQuery, categoryFilter, stockFilter]);
 
   const totalPages = Math.ceil(filteredProducts.length / pageSize);
   const paginatedProducts = filteredProducts.slice((page - 1) * pageSize, page * pageSize);
+
+  useGSAP(() => {
+    if (paginatedProducts.length > 0) {
+      gsap.fromTo('.product-row', 
+        { opacity: 0, x: -10 },
+        { opacity: 1, x: 0, duration: 0.3, stagger: 0.03, ease: 'power2.out', clearProps: 'all' }
+      );
+    }
+  }, { scope: containerRef, dependencies: [paginatedProducts] });
 
   const openCreate = () => {
     setEditingProduct(null);
@@ -94,11 +133,11 @@ export default function ProductsPage() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4" ref={containerRef}>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Produk</h2>
-          <p className="text-sm text-gray-500 mt-0.5">{filteredProducts.length} produk aktif</p>
+          <p className="text-sm text-gray-500 mt-0.5">{filteredProducts.length} produk ditemukan</p>
         </div>
         <button onClick={openCreate} className="pos-btn-primary flex items-center gap-2">
           <Plus className="w-4 h-4" />
@@ -106,16 +145,52 @@ export default function ProductsPage() {
         </button>
       </div>
 
-      <div className="flex gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-          <input
-            type="text"
-            placeholder="Cari produk (nama, SKU, barcode)..."
-            value={searchQuery}
-            onChange={e => { setSearchQuery(e.target.value); setPage(1); }}
-            className="pos-input w-full pl-10"
-          />
+      <div className="flex flex-col gap-3">
+        {/* Preset Filter Chips */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Filter className="w-4 h-4 text-slate-400 mr-1" />
+          <button 
+            onClick={() => setStockFilter('all')}
+            className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${stockFilter === 'all' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+          >
+            Semua Stok
+          </button>
+          <button 
+            onClick={() => setStockFilter('low')}
+            className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${stockFilter === 'low' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+          >
+            Stok Kritis
+          </button>
+          <button 
+            onClick={() => setStockFilter('out')}
+            className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${stockFilter === 'out' ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+          >
+            Habis (Kosong)
+          </button>
+          <div className="w-px h-4 bg-slate-300 dark:bg-slate-700 mx-1" />
+          <select 
+            value={categoryFilter} 
+            onChange={e => setCategoryFilter(e.target.value)} 
+            className="pos-input text-xs py-1.5 min-w-[120px]"
+          >
+            <option value="all">Semua Kategori</option>
+            {categories.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+            <input
+              type="text"
+              placeholder="Cari produk (nama, SKU, barcode)... (Ctrl+Shift+F untuk reset)"
+              value={searchQuery}
+              onChange={e => { setSearchQuery(e.target.value); setPage(1); }}
+              className="pos-input w-full pl-10"
+            />
+          </div>
         </div>
       </div>
 
@@ -135,7 +210,7 @@ export default function ProductsPage() {
             </thead>
             <tbody>
               {paginatedProducts.map(product => (
-                <tr key={product.id} className="pos-table-row border-l-2 border-transparent hover:border-l-emerald-500">
+                <tr key={product.id} className="product-row pos-table-row border-l-2 border-transparent hover:border-l-emerald-500">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-lg bg-white dark:bg-slate-900 flex items-center justify-center overflow-hidden flex-shrink-0">

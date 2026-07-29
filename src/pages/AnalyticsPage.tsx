@@ -7,11 +7,23 @@ import {
   Tooltip, ResponsiveContainer, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis
 } from 'recharts';
 import { useTheme } from 'next-themes';
+import InteractiveTiltCard from '@/components/ui/InteractiveTiltCard';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
+import { useRef } from 'react';
 
 export default function AnalyticsPage() {
   const { transactions, products, customers, settings } = useStore();
-  const { formatRupiah } = useFormat();
+  const { formatRupiah, formatCompactRupiah } = useFormat();
   const { theme } = useTheme();
+  const container = useRef<HTMLDivElement>(null);
+
+  useGSAP(() => {
+    gsap.fromTo('.analytics-card',
+      { y: 30, opacity: 0, scale: 0.95 },
+      { y: 0, opacity: 1, scale: 1, duration: 0.5, stagger: 0.1, ease: 'back.out(1.2)', clearProps: 'all' }
+    );
+  }, { scope: container });
 
   const now = new Date();
   const days30Ago = new Date(now.getTime() - 30 * 86400000);
@@ -46,7 +58,7 @@ export default function AnalyticsPage() {
       revenue, profit, avgMargin, avgOrder, uniqueCustomers, totalItems,
       inventoryValue, avgInventory, inventoryTurnover, retentionRate,
     };
-  }, [recentTrans, products, customers]);
+  }, [recentTrans, products, customers, days30Ago]);
 
   const dailyTrend = useMemo(() => {
     const map: Record<string, { date: string; revenue: number; profit: number; cost: number }> = {};
@@ -65,7 +77,7 @@ export default function AnalyticsPage() {
       }
     });
     return Object.values(map);
-  }, [recentTrans]);
+  }, [recentTrans, now]);
 
   const productMovement = useMemo(() => {
     const map: Record<string, { name: string; sold: number; stock: number; velocity: number }> = {};
@@ -111,15 +123,15 @@ export default function AnalyticsPage() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" ref={container}>
       <div>
         <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Analitik & BI</h2>
         <p className="text-sm text-slate-500 mt-0.5">Business Intelligence Dashboard</p>
       </div>
 
       {/* Health Score */}
-      <div className="pos-card p-5">
-        <div className="flex items-center justify-between">
+      <InteractiveTiltCard className="pos-card p-5 analytics-card">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-full border-4 border-emerald-500/20 flex items-center justify-center">
               <span className={`text-2xl font-bold font-mono ${getHealthColor(healthScore)}`}>{healthScore}</span>
@@ -130,30 +142,30 @@ export default function AnalyticsPage() {
               <p className="text-xs text-slate-500 mt-0.5">30 hari terakhir</p>
             </div>
           </div>
-          <div className="hidden sm:grid grid-cols-2 gap-x-8 gap-y-2 text-right">
+          <div className="w-full md:w-auto grid grid-cols-2 sm:grid-cols-4 gap-x-8 gap-y-4 text-center md:text-right">
             <div>
-              <p className="text-xs text-slate-500">Revenue</p>
-              <p className="text-sm font-mono text-slate-900 dark:text-slate-100">{formatRupiah(metrics.revenue)}</p>
+              <p className="text-xs text-slate-500 mb-1">Revenue</p>
+              <p className="text-lg font-mono font-bold text-slate-900 dark:text-slate-100">{formatCompactRupiah(metrics.revenue)}</p>
             </div>
             <div>
-              <p className="text-xs text-slate-500">Profit Margin</p>
-              <p className="text-sm font-mono text-emerald-600 dark:text-emerald-500">{metrics.avgMargin.toFixed(1)}%</p>
+              <p className="text-xs text-slate-500 mb-1">Profit Margin</p>
+              <p className="text-lg font-mono font-bold text-emerald-600 dark:text-emerald-500">{metrics.avgMargin.toFixed(1)}%</p>
             </div>
             <div>
-              <p className="text-xs text-slate-500">Inventory Turnover</p>
-              <p className="text-sm font-mono text-slate-900 dark:text-slate-100">{metrics.inventoryTurnover.toFixed(2)}x</p>
+              <p className="text-xs text-slate-500 mb-1">Inventory Turnover</p>
+              <p className="text-lg font-mono font-bold text-slate-900 dark:text-slate-100">{metrics.inventoryTurnover.toFixed(2)}x</p>
             </div>
             <div>
-              <p className="text-xs text-slate-500">Retention</p>
-              <p className="text-sm font-mono text-slate-900 dark:text-slate-100">{metrics.retentionRate.toFixed(1)}%</p>
+              <p className="text-xs text-slate-500 mb-1">Retention</p>
+              <p className="text-lg font-mono font-bold text-slate-900 dark:text-slate-100">{metrics.retentionRate.toFixed(1)}%</p>
             </div>
           </div>
         </div>
-      </div>
+      </InteractiveTiltCard>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Revenue vs Cost Chart */}
-        <div className="pos-card p-5">
+        <InteractiveTiltCard className="pos-card p-5 analytics-card">
           <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-emerald-600 dark:text-emerald-500" />
             Revenue vs Profit (30 Hari)
@@ -178,10 +190,10 @@ export default function AnalyticsPage() {
               <Area type="monotone" dataKey="profit" stroke="#10b981" strokeWidth={1} strokeOpacity={0.4} fill="url(#gradProfit)" />
             </AreaChart>
           </ResponsiveContainer>
-        </div>
+        </InteractiveTiltCard>
 
         {/* Radar Chart */}
-        <div className="pos-card p-5">
+        <InteractiveTiltCard className="pos-card p-5 analytics-card">
           <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
             <Activity className="w-4 h-4 text-emerald-600 dark:text-emerald-500" />
             Health Metrics
@@ -195,11 +207,11 @@ export default function AnalyticsPage() {
               <Tooltip contentStyle={{ backgroundColor: theme === 'dark' ? '#1e293b' : '#ffffff', border: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`, borderRadius: '8px', fontSize: '12px' }} itemStyle={{ color: theme === 'dark' ? '#fff' : '#000' }} formatter={(v: number, name: string) => [`${v.toFixed(1)}`, name === 'A' ? 'Score' : name]} />
             </RadarChart>
           </ResponsiveContainer>
-        </div>
+        </InteractiveTiltCard>
       </div>
 
       {/* Product Velocity */}
-      <div className="pos-card p-5">
+      <InteractiveTiltCard className="pos-card p-5 analytics-card">
         <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
           <Package className="w-4 h-4 text-emerald-600 dark:text-emerald-500" />
           Product Velocity (30 Hari)
@@ -213,10 +225,10 @@ export default function AnalyticsPage() {
             <Bar dataKey="sold" fill="#10b981" radius={[0, 4, 4, 0]} />
           </BarChart>
         </ResponsiveContainer>
-      </div>
+      </InteractiveTiltCard>
 
       {/* Target Progress */}
-      <div className="pos-card p-5">
+      <InteractiveTiltCard className="pos-card p-5 analytics-card">
         <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
           <Target className="w-4 h-4 text-amber-500" />
           Target Bulanan
@@ -231,23 +243,23 @@ export default function AnalyticsPage() {
             const pct = t.target > 0 ? Math.min(100, (t.actual / t.target) * 100) : 0;
             const typeLabels: Record<string, string> = { revenue: 'Revenue', profit: 'Profit', transactions: 'Transaksi', customers: 'Pelanggan' };
             return (
-              <div key={t.id} className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800">
+              <InteractiveTiltCard key={t.id} className="p-4 rounded-xl bg-slate-50/80 dark:bg-slate-800/80 hover:border-emerald-500/30">
                 <p className="text-xs text-slate-500">{typeLabels[t.type]}</p>
-                <div className="flex items-end justify-between mt-1">
-                  <p className="text-lg font-mono font-semibold text-slate-900 dark:text-slate-100">
-                    {t.type === 'transactions' || t.type === 'customers' ? t.actual.toLocaleString() : formatRupiah(t.actual)}
+                <div className="flex items-end justify-between mt-2">
+                  <p className="text-2xl font-mono font-bold tracking-tight text-slate-900 dark:text-slate-100">
+                    {t.type === 'transactions' || t.type === 'customers' ? t.actual.toLocaleString() : formatCompactRupiah(t.actual, false)}
                   </p>
-                  <p className="text-xs text-slate-500">/ {t.type === 'transactions' || t.type === 'customers' ? t.target.toLocaleString() : formatRupiah(t.target)}</p>
+                  <p className="text-xs text-slate-500 font-medium pb-1">/ {t.type === 'transactions' || t.type === 'customers' ? t.target.toLocaleString() : formatCompactRupiah(t.target)}</p>
                 </div>
                 <div className="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-900 mt-2 overflow-hidden">
                   <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${pct}%` }} />
                 </div>
-                <p className="text-xs text-emerald-600 dark:text-emerald-500 mt-1">{pct.toFixed(1)}% tercapai</p>
-              </div>
+                <p className="text-xs text-emerald-600 dark:text-emerald-500 font-semibold mt-1.5">{pct.toFixed(1)}% tercapai</p>
+              </InteractiveTiltCard>
             );
           })}
         </div>
-      </div>
+      </InteractiveTiltCard>
     </div>
   );
 }

@@ -10,7 +10,7 @@ export const seedUsers: User[] = [
   { id: 'U001', username: 'admin', name: 'Administrator', password: '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', salt: 'salt001', role: 'admin', isActive: true, createdAt: now, lastLogin: now },
   { id: 'U002', username: 'kasir1', name: 'Kasir Satu', password: '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', salt: 'salt002', role: 'kasir', isActive: true, createdAt: now, lastLogin: now },
   { id: 'U003', username: 'owner', name: 'Pemilik Toko', password: '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', salt: 'salt003', role: 'owner', isActive: true, createdAt: now },
-  { id: 'U004', username: 'supervisor', name: 'Supervisor', password: '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', salt: 'salt004', role: 'supervisor', isActive: true, createdAt: now },
+  { id: 'U004', username: 'demo', name: 'Demo Account', password: 'demo', salt: 'salt004', role: 'supervisor', isActive: true, createdAt: now },
 ];
 
 export const seedCategories: Category[] = [
@@ -55,7 +55,7 @@ export const seedSuppliers: Supplier[] = [
 ];
 
 export const seedSettings: Settings = {
-  storeName: 'Toko Sejahtera',
+  storeName: 'Sokara POS Store',
   storeAddress: 'Jl. Merdeka No. 123, Jakarta',
   storePhone: '021-12345678',
   taxRate: 11,
@@ -170,4 +170,11 @@ export function initializeData() {
   localStorage.setItem('pos_settings', JSON.stringify(seedSettings));
   localStorage.setItem('pos_businessTargets', JSON.stringify(seedBusinessTargets));
   localStorage.setItem('pos_initialized', 'true');
+}
+
+export function resetDatabase() {
+  localStorage.clear();
+  localStorage.removeItem('pos_initialized');
+  initializeData();
+  window.location.reload();
 }
