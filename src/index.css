@@ -43,6 +43,20 @@
     --holo-border-radius: 12px;
     --holo-border-width: 1px;
   }
+
+  .dark {
+    /* Discord Dark Mode Palette override for slate (RGB format for opacity support) */
+    --tw-color-slate-950: 30 31 34;    /* #1E1F22 */
+    --tw-color-slate-900: 43 45 49;    /* #2B2D31 */
+    --tw-color-slate-800: 49 51 56;    /* #313338 */
+    --tw-color-slate-700: 56 58 64;    /* #383A40 */
+    --tw-color-slate-600: 64 66 73;    /* #404249 */
+    --tw-color-slate-500: 128 132 142; /* #80848E */
+    --tw-color-slate-400: 181 186 193; /* #B5BAC1 */
+    --tw-color-slate-300: 219 222 225; /* #DBDEE1 */
+    --tw-color-slate-200: 219 222 225; /* #DBDEE1 */
+    --tw-color-slate-100: 242 243 245; /* #F2F3F5 */
+  }
 }
 
 @layer base {

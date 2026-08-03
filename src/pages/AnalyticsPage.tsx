@@ -25,8 +25,8 @@ export default function AnalyticsPage() {
     );
   }, { scope: container });
 
-  const now = new Date();
-  const days30Ago = new Date(now.getTime() - 30 * 86400000);
+  const now = useMemo(() => new Date(), []);
+  const days30Ago = useMemo(() => new Date(now.getTime() - 30 * 86400000), [now]);
 
   const recentTrans = transactions.filter(t => new Date(t.createdAt) >= days30Ago && !t.isVoided);
 

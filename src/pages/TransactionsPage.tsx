@@ -43,7 +43,6 @@ export default function TransactionsPage() {
       );
     }
     if (dateFilter === 'today') {
-      // eslint-disable-next-line react-hooks/purity
       const todayStr = new Date().toISOString().split('T')[0];
       result = result.filter(t => t.createdAt.startsWith(todayStr));
     } else if (dateFilter === 'week') {
@@ -51,7 +50,6 @@ export default function TransactionsPage() {
       const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
       result = result.filter(t => t.createdAt >= weekAgo);
     } else if (dateFilter === 'month') {
-      // eslint-disable-next-line react-hooks/purity
       const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
       result = result.filter(t => t.createdAt >= monthStart);
     }

@@ -3,7 +3,7 @@ import { useStore } from '@/store/useStore';
 import type { DashboardKPI, SalesTrend, TopProduct, AlertItem } from '@/types';
 
 export function useDashboard() {
-  const { products, transactions, businessTargets } = useStore();
+  const { products, transactions, businessTargets, dismissedAlertIds } = useStore();
 
   const kpi: DashboardKPI = useMemo(() => {
     const now = new Date();
@@ -133,8 +133,8 @@ export function useDashboard() {
       });
     }
 
-    return items;
-  }, [products, businessTargets]);
+    return items.filter(alert => !dismissedAlertIds.includes(alert.id));
+  }, [products, businessTargets, dismissedAlertIds]);
 
   const categorySales = useMemo(() => {
     const map: Record<string, { name: string; revenue: number; count: number }> = {};

@@ -13,7 +13,7 @@ import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 
 export default function POSPage() {
-  const { products, cart, addToCart, removeFromCart, updateCartQty, clearCart, currentUser, customers, addTransaction, addAuditLog, settings, categories } = useStore();
+  const { products, cart, addToCart, removeFromCart, updateCartQty, clearCart, currentUser, customers, addTransaction, addAuditLog, settings, categories, activeSession, startSession } = useStore();
   const { formatRupiah, generateInvoiceNumber, generateId, formatDate } = useFormat();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -23,12 +23,16 @@ export default function POSPage() {
   const [paidAmount, setPaidAmount] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState('');
   const [discount, setDiscount] = useState(0);
+  const [usePoints, setUsePoints] = useState(false);
   
   const [showReceipt, setShowReceipt] = useState(false);
   const [lastTransaction, setLastTransaction] = useState<Transaction | null>(null);
   const [activeKeys, setActiveKeys] = useState<Set<string>>(new Set());
   const inputRef = useRef<HTMLInputElement>(null);
   const container = useRef<HTMLDivElement>(null);
+
+  const [openingBalance, setOpeningBalance] = useState('');
+  const showSessionModal = !activeSession;
 
   const [pokaYoke, setPokaYoke] = useState<{
     isOpen: boolean;
@@ -44,12 +48,15 @@ export default function POSPage() {
 
   const cartSummary = useMemo(() => {
     const subtotal = cart.reduce((s, item) => s + item.subtotal, 0);
-    const totalDiscount = discount;
-    const taxableAmount = subtotal - totalDiscount;
+    const selectedCustomerObj = customers.find(c => c.id === selectedCustomer);
+    const pointDiscount = (usePoints && selectedCustomerObj) ? selectedCustomerObj.points * 10 : 0;
+    
+    const totalDiscount = discount + pointDiscount;
+    const taxableAmount = Math.max(0, subtotal - totalDiscount);
     const totalTax = settings.taxRate > 0 ? Math.round(taxableAmount * settings.taxRate / 100) : 0;
     const total = taxableAmount + totalTax;
-    return { subtotal, totalDiscount, totalTax, total };
-  }, [cart, discount, settings.taxRate]);
+    return { subtotal, totalDiscount, totalTax, total, pointDiscount };
+  }, [cart, discount, settings.taxRate, usePoints, selectedCustomer, customers]);
 
   const finalTotal = useMemo(() => {
     if (paymentMethod === 'cash') {
@@ -186,7 +193,7 @@ export default function POSPage() {
     return paid - finalTotal;
   }, [paidAmount, finalTotal]);
 
-  const handleCheckout = () => {
+  const handleCheckout = useCallback(() => {
     if (cart.length === 0) return;
 
     const transaction: Transaction = {
@@ -214,10 +221,11 @@ export default function POSPage() {
       taxRate: settings.taxRate,
       total: finalTotal,
       paymentMethod,
-      paidAmount: paymentMethod === 'cash' ? (parseInt(paidAmount.replace(/\D/g, '')) || finalTotal) : finalTotal,
-      change: paymentMethod === 'cash' ? Math.max(0, change) : 0,
+      paidAmount: paymentMethod === 'cash' ? parseInt(paidAmount.replace(/\D/g, '')) || 0 : finalTotal,
+      change: paymentMethod === 'cash' ? change : 0,
       isVoided: false,
-      createdAt: new Date().toISOString(),
+      usedPoints: usePoints && selectedCustomer ? customers.find(c => c.id === selectedCustomer)?.points || 0 : 0,
+      createdAt: new Date().toISOString()
     };
 
     transaction.items = transaction.items.map(i => ({ ...i, transactionId: transaction.id }));
@@ -240,10 +248,11 @@ export default function POSPage() {
     setShowReceipt(true);
     setPaidAmount('');
     setDiscount(0);
+    setUsePoints(false);
     setSelectedCustomer('');
-  };
+  }, [cart, generateId, generateInvoiceNumber, settings, selectedCustomer, customers, currentUser, cartSummary, finalTotal, paymentMethod, paidAmount, change, usePoints, addTransaction, addAuditLog]);
 
-  const handleKeypad = (key: string) => {
+  const handleKeypad = useCallback((key: string) => {
     if (key === 'C') {
       setPaidAmount('');
     } else if (key === 'enter') {
@@ -255,7 +264,7 @@ export default function POSPage() {
         return newVal;
       });
     }
-  };
+  }, [showPayment, change, handleCheckout]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -290,7 +299,7 @@ export default function POSPage() {
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
     };
-  }, [showPayment, finalTotal, change]);
+  }, [handleKeypad]);
 
   const quickAmounts = [5000, 10000, 20000, 50000, 100000];
 
@@ -429,7 +438,7 @@ export default function POSPage() {
             <span className="text-slate-900 dark:text-slate-100 font-mono">{formatRupiah(cartSummary.subtotal)}</span>
           </div>
           <div className="flex items-center justify-between text-sm">
-            <span className="text-slate-500">Diskon (Rp)</span>
+            <span className="text-slate-500">Diskon Lain (Rp)</span>
             <input
               type="text"
               value={discount === 0 ? '' : discount}
@@ -438,6 +447,22 @@ export default function POSPage() {
               className="pos-input text-right w-28 py-1 px-2 text-rose-500 font-mono h-8 border-transparent hover:border-slate-300 dark:hover:border-slate-600 bg-transparent hover:bg-white dark:hover:bg-slate-900 focus:bg-white dark:focus:bg-slate-900 transition-all"
             />
           </div>
+          {selectedCustomer && customers.find(c => c.id === selectedCustomer)?.points ? (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-500">Poin Loyalty ({customers.find(c => c.id === selectedCustomer)?.points} pts)</span>
+              <div className="flex items-center gap-2">
+                <span className="text-rose-500 font-mono">
+                  -{formatRupiah((customers.find(c => c.id === selectedCustomer)?.points || 0) * 10)}
+                </span>
+                <input 
+                  type="checkbox" 
+                  checked={usePoints} 
+                  onChange={(e) => setUsePoints(e.target.checked)} 
+                  className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-600"
+                />
+              </div>
+            </div>
+          ) : null}
           <div className="flex justify-between text-sm">
             <span className="text-slate-500">Pajak ({settings.taxRate}%)</span>
             <span className="text-slate-400 font-mono">{formatRupiah(cartSummary.totalTax)}</span>
@@ -705,6 +730,52 @@ export default function POSPage() {
               >
                 <Plus className="w-4 h-4" />
                 Transaksi Baru
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Session Guard Modal */}
+      {showSessionModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md p-6 shadow-2xl border border-slate-200 dark:border-slate-800">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Monitor className="w-8 h-8" />
+              </div>
+              <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Buka Sesi Kasir</h2>
+              <p className="text-slate-500 dark:text-slate-400 mt-2">
+                Halo {currentUser?.name}, silakan masukkan saldo awal laci kasir (modal uang kembalian) untuk memulai sesi Anda.
+              </p>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  Saldo Awal Laci (Opening Balance)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-medium">Rp</span>
+                  <input
+                    type="text"
+                    value={openingBalance === '' ? '' : formatRupiah(parseInt(openingBalance.replace(/\D/g, '')) || 0).replace('Rp', '').trim()}
+                    onChange={e => setOpeningBalance(e.target.value)}
+                    placeholder="0"
+                    className="pos-input w-full pl-10 h-12 text-lg font-bold"
+                  />
+                </div>
+              </div>
+              
+              <button 
+                onClick={() => {
+                  const amount = parseInt(openingBalance.replace(/\D/g, '')) || 0;
+                  startSession(amount);
+                  toast.success(`Sesi dibuka dengan saldo awal ${formatRupiah(amount)}`);
+                }}
+                className="pos-btn-primary w-full h-12 text-lg"
+              >
+                Mulai Berjualan
               </button>
             </div>
           </div>

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { User, Product, Category, Customer, Transaction, StockMutation, AuditLog, Supplier, Settings, BusinessTarget, CartItem, AlertItem, UserRole } from '@/types';
+import type { User, Product, Category, Customer, Transaction, StockMutation, AuditLog, Supplier, Settings, BusinessTarget, CartItem, AlertItem, UserRole, CashierSession } from '@/types';
 
 interface SyncPayload {
   action: string;
@@ -24,12 +24,23 @@ interface POSStore {
   alerts: AlertItem[];
   currentPage: string;
   isSidebarOpen: boolean;
+  isSidebarCollapsed: boolean;
+  dismissedAlertIds: string[];
+  cashierSessions: CashierSession[];
+  activeSession: CashierSession | null;
 
   login: (username: string, password: string) => boolean;
   logout: () => void;
   setCurrentPage: (page: string) => void;
   toggleSidebar: () => void;
+  toggleSidebarCollapse: () => void;
+  dismissAlert: (id: string) => void;
+  clearAllAlerts: (ids: string[]) => void;
+  addUser: (user: Omit<User, 'id' | 'createdAt' | 'salt'>) => void;
   updateUser: (user: User) => void;
+  
+  startSession: (openingBalance: number) => void;
+  endSession: (actualClosingBalance: number) => void;
 
   addToCart: (product: Product, qty?: number) => void;
   removeFromCart: (productId: string) => void;
@@ -143,10 +154,14 @@ export const useStore = create<POSStore>((set, get) => ({
   suppliers: loadFromStorage('pos_suppliers', []),
   settings: migratedSettings,
   businessTargets: loadFromStorage('pos_businessTargets', []),
+  cashierSessions: loadFromStorage('pos_cashierSessions', []),
+  activeSession: loadFromStorage('pos_activeSession', null),
   cart: [],
   alerts: [],
+  dismissedAlertIds: loadFromStorage('pos_dismissedAlerts', []),
   currentPage: 'dashboard',
   isSidebarOpen: true,
+  isSidebarCollapsed: loadFromStorage('pos_sidebarCollapsed', false),
 
   login: (username: string, password: string) => {
     const users = get().users;
@@ -187,6 +202,79 @@ export const useStore = create<POSStore>((set, get) => ({
     });
   },
 
+  addUser: (user: Omit<User, 'id' | 'createdAt' | 'salt'>) => {
+    set(state => {
+      const salt = Math.random().toString(36).substring(2, 10);
+      const hash = btoa(user.password + salt);
+      const newUser: User = {
+        ...user,
+        id: `U${String(state.users.length + 1).padStart(3, '0')}`,
+        password: hash,
+        salt,
+        createdAt: new Date().toISOString(),
+      };
+      const newUsers = [...state.users, newUser];
+      saveToStorage('pos_users', newUsers);
+      return { users: newUsers };
+    });
+  },
+
+  startSession: (openingBalance: number) => {
+    set(state => {
+      if (state.activeSession) return state; // already has active session
+      if (!state.currentUser) return state;
+
+      const newSession: CashierSession = {
+        id: `SESSION-${Date.now()}`,
+        cashierId: state.currentUser.id,
+        cashierName: state.currentUser.name,
+        startTime: new Date().toISOString(),
+        openingBalance,
+        status: 'open',
+      };
+      saveToStorage('pos_activeSession', newSession);
+      return { activeSession: newSession };
+    });
+  },
+
+  endSession: (actualClosingBalance: number) => {
+    set(state => {
+      if (!state.activeSession) return state;
+
+      // Calculate cash revenue during this session
+      const sessionStart = new Date(state.activeSession.startTime).getTime();
+      
+      const sessionTransactions = state.transactions.filter(t => 
+        t.cashierId === state.activeSession!.cashierId && 
+        new Date(t.createdAt).getTime() >= sessionStart &&
+        !t.isVoided &&
+        t.paymentMethod === 'cash'
+      );
+
+      const totalCashRevenue = sessionTransactions.reduce((sum, t) => sum + t.total, 0);
+      const expectedClosingBalance = state.activeSession.openingBalance + totalCashRevenue;
+
+      const closedSession: CashierSession = {
+        ...state.activeSession,
+        endTime: new Date().toISOString(),
+        closingBalance: actualClosingBalance,
+        expectedClosingBalance,
+        totalTransactions: sessionTransactions.length,
+        totalCashRevenue,
+        status: 'closed',
+      };
+
+      const newSessions = [...state.cashierSessions, closedSession];
+      saveToStorage('pos_cashierSessions', newSessions);
+      saveToStorage('pos_activeSession', null);
+      
+      return { 
+        activeSession: null,
+        cashierSessions: newSessions
+      };
+    });
+  },
+
   setCurrentPage: (page: string) => {
     const { currentUser, hasPermission } = get();
     if (!currentUser && page !== 'login') {
@@ -200,6 +288,25 @@ export const useStore = create<POSStore>((set, get) => ({
   },
 
   toggleSidebar: () => set(state => ({ isSidebarOpen: !state.isSidebarOpen })),
+
+  toggleSidebarCollapse: () => set(state => {
+    const next = !state.isSidebarCollapsed;
+    saveToStorage('pos_sidebarCollapsed', next);
+    return { isSidebarCollapsed: next };
+  }),
+
+  dismissAlert: (id: string) => set(state => {
+    if (state.dismissedAlertIds.includes(id)) return state;
+    const next = [...state.dismissedAlertIds, id];
+    saveToStorage('pos_dismissedAlerts', next);
+    return { dismissedAlertIds: next };
+  }),
+
+  clearAllAlerts: (ids: string[]) => set(state => {
+    const next = Array.from(new Set([...state.dismissedAlertIds, ...ids]));
+    saveToStorage('pos_dismissedAlerts', next);
+    return { dismissedAlertIds: next };
+  }),
 
   addToCart: (product: Product, qty = 1) => {
     set(state => {
@@ -379,17 +486,47 @@ export const useStore = create<POSStore>((set, get) => ({
         };
       });
 
+      // 3. Update customer loyalty points
+      let updatedCustomers = state.customers;
+      if (transaction.customerId) {
+        updatedCustomers = state.customers.map(c => {
+          if (c.id === transaction.customerId) {
+            // Calculate earned points: 1 point per 1000 IDR (after using point discount if any, though total includes discounts)
+            const earnedPoints = Math.floor(transaction.total / 1000);
+            const newTotalSpent = c.totalSpent + transaction.total;
+            let newMembership = c.membership;
+            if (newTotalSpent >= 50000000) newMembership = 'platinum';
+            else if (newTotalSpent >= 20000000) newMembership = 'gold';
+            else if (newTotalSpent >= 5000000) newMembership = 'silver';
+            else newMembership = 'bronze';
+            
+            const usedPoints = transaction.usedPoints || 0;
+            return {
+              ...c,
+              points: c.points - usedPoints + earnedPoints, // deduct used, add earned
+              totalSpent: newTotalSpent,
+              transactionCount: c.transactionCount + 1,
+              membership: newMembership,
+              lastPurchase: now
+            };
+          }
+          return c;
+        });
+      }
+
       const newTransactions = [transaction, ...state.transactions];
       const newStockMutations = [...state.stockMutations, ...newMutations];
 
       saveToStorage('pos_transactions', newTransactions);
       saveToStorage('pos_products', updatedProducts);
       saveToStorage('pos_stockMutations', newStockMutations);
+      saveToStorage('pos_customers', updatedCustomers);
 
       return {
         transactions: newTransactions,
         products: updatedProducts,
         stockMutations: newStockMutations,
+        customers: updatedCustomers,
         cart: []
       };
     });
@@ -559,14 +696,6 @@ export const useStore = create<POSStore>((set, get) => ({
     if (user.username === 'demo' && permission === 'settings') return false;
     return pagePermissions[permission]?.includes(user.role) ?? false;
   },
-
-  markAlertRead: (id: string) => set(state => ({
-    alerts: state.alerts.map(a => a.id === id ? { ...a, isRead: true } : a)
-  })),
-
-  clearAllAlerts: () => set(state => ({
-    alerts: state.alerts.map(a => ({ ...a, isRead: true }))
-  })),
 
   factoryReset: () => {
     localStorage.clear();

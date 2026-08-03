@@ -248,7 +248,7 @@ export default function CustomersPage() {
               </div>
               <div>
                 <label className="block text-sm text-gray-400 mb-1">Membership</label>
-                <select value={form.membership || 'bronze'} onChange={e => setForm(f => ({ ...f, membership: e.target.value as any }))} className="pos-input w-full">
+                <select value={form.membership || 'bronze'} onChange={e => setForm(f => ({ ...f, membership: e.target.value as 'bronze' | 'silver' | 'gold' | 'platinum' }))} className="pos-input w-full">
                   <option value="bronze">Bronze</option>
                   <option value="silver">Silver</option>
                   <option value="gold">Gold</option>

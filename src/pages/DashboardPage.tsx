@@ -3,12 +3,12 @@ import { useStore } from '@/store/useStore';
 import { useFormat } from '@/hooks/useFormat';
 import {
   TrendingUp, ShoppingCart, Package,
-  AlertTriangle, Bell, Zap, ArrowUpRight, ArrowDownRight,
-  DollarSign, Receipt, BarChart3
+  AlertTriangle, Bell, ArrowUpRight, ArrowDownRight,
+  DollarSign, Receipt, BarChart3, PieChart as PieChartIcon
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, PieChart, Pie, Cell
+  Tooltip, ResponsiveContainer
 } from 'recharts';
 import { useTheme } from 'next-themes';
 import InteractiveTiltCard from '@/components/ui/InteractiveTiltCard';
@@ -16,8 +16,8 @@ import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { useRef, useState } from 'react';
 
-const COLORS = ['#34d399', '#10b981', '#059669', '#047857', '#065f46', '#064e3b'];
-const DARK_COLORS = ['#10b981', '#059669', '#047857', '#065f46', '#064e3b', '#022c22'];
+const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#f43f5e', '#0ea5e9'];
+const DARK_COLORS = ['#059669', '#2563eb', '#d97706', '#7c3aed', '#e11d48', '#0284c7'];
 
 export default function DashboardPage() {
   const { kpi, salesTrend, topProducts, alerts, categorySales } = useDashboard();
@@ -25,7 +25,7 @@ export default function DashboardPage() {
   const { formatRupiah, formatCompactRupiah } = useFormat();
   const { theme } = useTheme();
   const container = useRef<HTMLDivElement>(null);
-  const [restockProduct, setRestockProduct] = useState<any>(null);
+  const [restockProduct, setRestockProduct] = useState<Product | null>(null);
   const [restockQty, setRestockQty] = useState('');
 
   useGSAP(() => {
@@ -41,7 +41,7 @@ export default function DashboardPage() {
       value: kpi.todayRevenue,
       icon: DollarSign,
       trend: kpi.growthRevenue,
-      color: '#00FF41',
+      color: '#10b981', // emerald
       prefix: 'Rp',
     },
     {
@@ -49,7 +49,7 @@ export default function DashboardPage() {
       value: kpi.todayTransactions,
       icon: Receipt,
       trend: kpi.growthTransactions,
-      color: '#00FF41',
+      color: '#3b82f6', // blue
       prefix: '',
     },
     {
@@ -57,7 +57,7 @@ export default function DashboardPage() {
       value: kpi.todayProfit,
       icon: TrendingUp,
       trend: kpi.growthRevenue,
-      color: '#00FF41',
+      color: '#f59e0b', // amber
       prefix: 'Rp',
     },
     {
@@ -65,7 +65,7 @@ export default function DashboardPage() {
       value: kpi.averageOrderValue,
       icon: ShoppingCart,
       trend: 0,
-      color: '#00FF41',
+      color: '#8b5cf6', // violet
       prefix: 'Rp',
     },
   ];
@@ -79,12 +79,6 @@ export default function DashboardPage() {
         <div>
           <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Dashboard</h2>
           <p className="text-sm text-slate-500 mt-0.5">Ringkasan bisnis hari ini</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="pos-badge-green flex items-center gap-1">
-            <Zap className="w-3 h-3" />
-            Live
-          </span>
         </div>
       </div>
 
@@ -203,51 +197,44 @@ export default function DashboardPage() {
           </ResponsiveContainer>
         </div>
 
-        {/* Category Sales Pie */}
-        <div className="pos-card p-5 dashboard-card">
-          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
-            <PieChart className="w-4 h-4 text-emerald-600 dark:text-emerald-500" />
+        {/* Category Sales List */}
+        <div className="pos-card p-5 dashboard-card flex flex-col h-full">
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-6 flex items-center gap-2">
+            <PieChartIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-500" />
             Penjualan per Kategori
           </h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <PieChart>
-              <Pie
-                data={categorySales}
-                cx="50%"
-                cy="50%"
-                innerRadius={50}
-                outerRadius={80}
-                paddingAngle={3}
-                dataKey="revenue"
-                nameKey="name"
-              >
-                {categorySales.map((_, index) => {
-                  const palette = theme === 'dark' ? DARK_COLORS : COLORS;
-                  return <Cell key={`cell-${index}`} fill={palette[index % palette.length]} />;
-                })}
-              </Pie>
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: theme === 'dark' ? '#111111' : '#ffffff',
-                  border: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
-                  borderRadius: '8px',
-                  fontSize: '12px',
-                }}
-                itemStyle={{ color: theme === 'dark' ? '#fff' : '#000' }}
-                formatter={(value: number, name: string) => [`Rp${formatRupiah(value, false)}`, name]}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="mt-3 space-y-1.5">
-            {categorySales.slice(0, 4).map((cat, i) => (
-              <div key={cat.name} className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: (theme === 'dark' ? DARK_COLORS : COLORS)[i % COLORS.length] }} />
-                  <span className="text-slate-500 dark:text-slate-400">{cat.name}</span>
-                </div>
-                <span className="text-slate-900 dark:text-slate-100 font-mono">{formatRupiah(cat.revenue)}</span>
-              </div>
-            ))}
+          <div className="space-y-5 flex-1 justify-center flex flex-col">
+            {(() => {
+              const totalCategoryRevenue = categorySales.reduce((acc, cat) => acc + cat.revenue, 0);
+              return categorySales.map((cat, i) => {
+                const percentage = totalCategoryRevenue > 0 ? (cat.revenue / totalCategoryRevenue) * 100 : 0;
+                const color = (theme === 'dark' ? DARK_COLORS : COLORS)[i % COLORS.length];
+                return (
+                  <div key={cat.name} className="group">
+                    <div className="flex justify-between items-end mb-2">
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-slate-100 transition-colors">{cat.name}</span>
+                      <div className="text-right">
+                        <span className="text-sm font-bold text-slate-900 dark:text-slate-100 font-mono tracking-tight">
+                          {formatRupiah(cat.revenue)}
+                        </span>
+                        <span className="text-[10px] text-slate-500 ml-2 font-medium w-8 inline-block text-right">
+                          {percentage.toFixed(1)}%
+                        </span>
+                      </div>
+                    </div>
+                    <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full rounded-full transition-all duration-1000 ease-out"
+                        style={{ width: `${percentage}%`, backgroundColor: color }}
+                      />
+                    </div>
+                  </div>
+                );
+              });
+            })()}
+            {categorySales.length === 0 && (
+              <p className="text-sm text-slate-500 text-center py-4">Belum ada data penjualan</p>
+            )}
           </div>
         </div>
       </div>

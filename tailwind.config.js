@@ -5,6 +5,19 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        slate: {
+          50: 'rgb(var(--tw-color-slate-50, 248 250 252) / <alpha-value>)',
+          100: 'rgb(var(--tw-color-slate-100, 241 245 249) / <alpha-value>)',
+          200: 'rgb(var(--tw-color-slate-200, 226 232 240) / <alpha-value>)',
+          300: 'rgb(var(--tw-color-slate-300, 203 213 225) / <alpha-value>)',
+          400: 'rgb(var(--tw-color-slate-400, 148 163 184) / <alpha-value>)',
+          500: 'rgb(var(--tw-color-slate-500, 100 116 139) / <alpha-value>)',
+          600: 'rgb(var(--tw-color-slate-600, 71 85 105) / <alpha-value>)',
+          700: 'rgb(var(--tw-color-slate-700, 51 65 85) / <alpha-value>)',
+          800: 'rgb(var(--tw-color-slate-800, 30 41 59) / <alpha-value>)',
+          900: 'rgb(var(--tw-color-slate-900, 15 23 42) / <alpha-value>)',
+          950: 'rgb(var(--tw-color-slate-950, 2 6 23) / <alpha-value>)',
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

@@ -13,6 +13,21 @@ export interface User {
   lastLogin?: string;
 }
 
+export interface CashierSession {
+  id: string;
+  cashierId: string;
+  cashierName: string;
+  startTime: string;
+  endTime?: string;
+  openingBalance: number;
+  closingBalance?: number;
+  expectedClosingBalance?: number;
+  totalTransactions?: number;
+  totalCashRevenue?: number;
+  status: 'open' | 'closed';
+  branchId?: string;
+}
+
 export interface Category {
   id: string;
   name: string;
@@ -89,6 +104,7 @@ export interface Transaction {
   change: number;
   note?: string;
   branchId?: string;
+  usedPoints?: number;
   isVoided: boolean;
   voidReason?: string;
   voidedAt?: string;
@@ -214,6 +230,8 @@ export interface AppState {
   purchaseOrders: PurchaseOrder[];
   settings: Settings;
   businessTargets: BusinessTarget[];
+  cashierSessions: CashierSession[];
+  activeSession: CashierSession | null;
 }
 
 export interface DashboardKPI {
