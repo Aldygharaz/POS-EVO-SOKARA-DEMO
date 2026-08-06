@@ -1,6 +1,5 @@
 import { useEffect, lazy, Suspense } from 'react';
 import { useStore } from '@/store/useStore';
-import { initializeData } from '@/data/seedData';
 import Layout from '@/components/Layout';
 import { Toaster, toast } from 'sonner';
 
@@ -22,9 +21,7 @@ function App() {
   const { currentUser, currentPage, setCurrentPage, isDbLoaded, initDbData } = useStore();
 
   useEffect(() => {
-    initDbData().then(() => {
-      initializeData();
-    });
+    initDbData();
     const savedUser = localStorage.getItem('pos_currentUser');
     if (savedUser) {
       try {

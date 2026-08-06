@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { User, Product, Category, Customer, Transaction, StockMutation, AuditLog, Supplier, Settings, BusinessTarget, CartItem, AlertItem, UserRole, CashierSession } from '@/types';
 import { getStoreData, saveStoreData, addStoreItem, updateStoreItem } from '@/lib/db';
+import { initializeData } from '@/data/seedData';
 
 interface SyncPayload {
   action: string;
@@ -143,6 +144,9 @@ const migratedSettings: Settings = { ...defaultSettings, ...rawSettings };
 if (JSON.stringify(rawSettings) !== JSON.stringify(migratedSettings)) {
   saveToStorage('pos_settings', migratedSettings);
 }
+
+// Ensure database is seeded BEFORE initializing the store
+initializeData();
 
 export const useStore = create<POSStore>((set, get) => ({
   currentUser: null,
