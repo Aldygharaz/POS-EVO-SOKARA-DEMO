@@ -15,6 +15,7 @@ import InteractiveTiltCard from '@/components/ui/InteractiveTiltCard';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { useRef, useState } from 'react';
+import type { Product } from '@/types';
 
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#f43f5e', '#0ea5e9'];
 const DARK_COLORS = ['#059669', '#2563eb', '#d97706', '#7c3aed', '#e11d48', '#0284c7'];

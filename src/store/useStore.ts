@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { User, Product, Category, Customer, Transaction, StockMutation, AuditLog, Supplier, Settings, BusinessTarget, CartItem, AlertItem, UserRole, CashierSession } from '@/types';
+import { getStoreData, saveStoreData, addStoreItem, updateStoreItem } from '@/lib/db';
 
 interface SyncPayload {
   action: string;
@@ -17,6 +18,8 @@ interface POSStore {
   transactions: Transaction[];
   stockMutations: StockMutation[];
   auditLogs: AuditLog[];
+  isDbLoaded: boolean;
+  initDbData: () => Promise<void>;
   suppliers: Supplier[];
   settings: Settings;
   businessTargets: BusinessTarget[];
@@ -35,7 +38,7 @@ interface POSStore {
   toggleSidebar: () => void;
   toggleSidebarCollapse: () => void;
   dismissAlert: (id: string) => void;
-  clearAllAlerts: (ids: string[]) => void;
+  clearAllAlerts: (ids?: string[]) => void;
   addUser: (user: Omit<User, 'id' | 'createdAt' | 'salt'>) => void;
   updateUser: (user: User) => void;
   
@@ -72,7 +75,6 @@ interface POSStore {
   hasPermission: (permission: string) => boolean;
 
   markAlertRead: (id: string) => void;
-  clearAllAlerts: () => void;
   factoryReset: () => void;
 }
 
@@ -148,9 +150,10 @@ export const useStore = create<POSStore>((set, get) => ({
   products: loadFromStorage('pos_products', []),
   categories: loadFromStorage('pos_categories', []),
   customers: loadFromStorage('pos_customers', []),
-  transactions: loadFromStorage('pos_transactions', []),
-  stockMutations: loadFromStorage('pos_stockMutations', []),
-  auditLogs: loadFromStorage('pos_auditLogs', []),
+  transactions: [],
+  stockMutations: [],
+  auditLogs: [],
+  isDbLoaded: false,
   suppliers: loadFromStorage('pos_suppliers', []),
   settings: migratedSettings,
   businessTargets: loadFromStorage('pos_businessTargets', []),
@@ -162,6 +165,50 @@ export const useStore = create<POSStore>((set, get) => ({
   currentPage: 'dashboard',
   isSidebarOpen: true,
   isSidebarCollapsed: loadFromStorage('pos_sidebarCollapsed', false),
+
+  initDbData: async () => {
+    try {
+      // Migrate existing local storage data to indexedDB if needed
+      let transactions = loadFromStorage<Transaction[]>('pos_transactions', []);
+      let stockMutations = loadFromStorage<StockMutation[]>('pos_stockMutations', []);
+      let auditLogs = loadFromStorage<AuditLog[]>('pos_auditLogs', []);
+
+      const dbTransactions = await getStoreData<Transaction>('transactions');
+      const dbStockMutations = await getStoreData<StockMutation>('stockMutations');
+      const dbAuditLogs = await getStoreData<AuditLog>('auditLogs');
+
+      if (dbTransactions.length === 0 && transactions.length > 0) {
+        await saveStoreData('transactions', transactions);
+        localStorage.removeItem('pos_transactions');
+      } else {
+        transactions = dbTransactions;
+      }
+
+      if (dbStockMutations.length === 0 && stockMutations.length > 0) {
+        await saveStoreData('stockMutations', stockMutations);
+        localStorage.removeItem('pos_stockMutations');
+      } else {
+        stockMutations = dbStockMutations;
+      }
+
+      if (dbAuditLogs.length === 0 && auditLogs.length > 0) {
+        await saveStoreData('auditLogs', auditLogs);
+        localStorage.removeItem('pos_auditLogs');
+      } else {
+        auditLogs = dbAuditLogs;
+      }
+
+      set({
+        transactions: transactions.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+        stockMutations: stockMutations.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+        auditLogs: auditLogs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+        isDbLoaded: true
+      });
+    } catch (e) {
+      console.error("Failed to init IDB", e);
+      set({ isDbLoaded: true });
+    }
+  },
 
   login: (username: string, password: string) => {
     const users = get().users;
@@ -302,11 +349,19 @@ export const useStore = create<POSStore>((set, get) => ({
     return { dismissedAlertIds: next };
   }),
 
-  clearAllAlerts: (ids: string[]) => set(state => {
-    const next = Array.from(new Set([...state.dismissedAlertIds, ...ids]));
-    saveToStorage('pos_dismissedAlerts', next);
-    return { dismissedAlertIds: next };
+  clearAllAlerts: (ids?: string[]) => set(state => {
+    if (ids) {
+      const next = Array.from(new Set([...state.dismissedAlertIds, ...ids]));
+      saveToStorage('pos_dismissedAlerts', next);
+      return { dismissedAlertIds: next };
+    } else {
+      const next = state.alerts.map(a => a.id);
+      saveToStorage('pos_dismissedAlerts', next);
+      return { dismissedAlertIds: next };
+    }
   }),
+
+  markAlertRead: (id: string) => get().dismissAlert(id),
 
   addToCart: (product: Product, qty = 1) => {
     set(state => {
@@ -515,11 +570,15 @@ export const useStore = create<POSStore>((set, get) => ({
       }
 
       const newTransactions = [transaction, ...state.transactions];
-      const newStockMutations = [...state.stockMutations, ...newMutations];
+      const newStockMutations = [...newMutations, ...state.stockMutations];
 
-      saveToStorage('pos_transactions', newTransactions);
+      // Async save to IndexedDB
+      addStoreItem('transactions', transaction);
+      for(const mut of newMutations) {
+        addStoreItem('stockMutations', mut);
+      }
+
       saveToStorage('pos_products', updatedProducts);
-      saveToStorage('pos_stockMutations', newStockMutations);
       saveToStorage('pos_customers', updatedCustomers);
 
       return {
@@ -648,14 +707,19 @@ export const useStore = create<POSStore>((set, get) => ({
         };
       });
 
+      const voidedTransaction = { ...targetTx, isVoided: true, voidReason: reason, voidedAt: now, voidedBy: by };
       const newTransactions = state.transactions.map(t =>
-        t.id === id ? { ...t, isVoided: true, voidReason: reason, voidedAt: now, voidedBy: by } : t
+        t.id === id ? voidedTransaction : t
       );
-      const newStockMutations = [...state.stockMutations, ...restoreMutations];
+      const newStockMutations = [...restoreMutations, ...state.stockMutations];
 
-      saveToStorage('pos_transactions', newTransactions);
+      // Async save to IndexedDB
+      updateStoreItem('transactions', voidedTransaction);
+      for(const mut of restoreMutations) {
+        addStoreItem('stockMutations', mut);
+      }
+
       saveToStorage('pos_products', updatedProducts);
-      saveToStorage('pos_stockMutations', newStockMutations);
 
       return {
         transactions: newTransactions,
@@ -667,8 +731,8 @@ export const useStore = create<POSStore>((set, get) => ({
 
   addStockMutation: (mutation: StockMutation) => {
     set(state => {
-      const newMutations = [...state.stockMutations, mutation];
-      saveToStorage('pos_stockMutations', newMutations);
+      const newMutations = [mutation, ...state.stockMutations];
+      addStoreItem('stockMutations', mutation);
       return { stockMutations: newMutations };
     });
   },
@@ -676,7 +740,7 @@ export const useStore = create<POSStore>((set, get) => ({
   addAuditLog: (log: AuditLog) => {
     set(state => {
       const newLogs = [log, ...state.auditLogs];
-      saveToStorage('pos_auditLogs', newLogs);
+      addStoreItem('auditLogs', log);
       return { auditLogs: newLogs };
     });
   },

@@ -11,6 +11,7 @@ import InteractiveTiltCard from '@/components/ui/InteractiveTiltCard';
 import PokaYokeModal from '@/components/ui/PokaYokeModal';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
+import { audioService } from '@/lib/audio';
 
 export default function POSPage() {
   const { products, cart, addToCart, removeFromCart, updateCartQty, clearCart, currentUser, customers, addTransaction, addAuditLog, settings, categories, activeSession, startSession } = useStore();
@@ -69,6 +70,7 @@ export default function POSPage() {
     const existingInCart = cart.find(i => i.productId === product.id);
     const currentCartQty = existingInCart ? existingInCart.quantity : 0;
     if (currentCartQty + qty > product.currentStock) {
+      audioService.playErrorBeep();
       setPokaYoke({
         isOpen: true,
         title: 'Stok Tidak Mencukupi!',
@@ -79,6 +81,7 @@ export default function POSPage() {
       return;
     }
     addToCart(product, qty);
+    audioService.playSuccessBeep();
     toast.success(`${product.name} ditambahkan ke keranjang`);
   }, [cart, addToCart]);
 
@@ -146,8 +149,8 @@ export default function POSPage() {
           const matched = products.find(p => p.isActive && (p.barcode === barcodeBuffer || p.sku.toLowerCase() === barcodeBuffer.toLowerCase()));
           if (matched) {
             handleAddToCartWithValidation(matched);
-            toast.success(`Scanned: ${matched.name}`);
           } else {
+            audioService.playErrorBeep();
             toast.error(`Produk dengan barcode/SKU "${barcodeBuffer}" tidak ditemukan`);
           }
         }
@@ -242,6 +245,7 @@ export default function POSPage() {
       createdAt: new Date().toISOString(),
     });
 
+    audioService.playCheckoutSound();
     toast.success(`Transaksi ${transaction.invoiceNumber} Berhasil!`);
     setLastTransaction(transaction);
     setShowPayment(false);

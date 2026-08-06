@@ -15,6 +15,13 @@ export default function Layout({ children }: LayoutProps) {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger navigation shortcuts if we are on the POS page (as POS uses F1-F12 for its own functions)
+      if (useStore.getState().currentPage === 'pos') {
+        if (['F1', 'F2', 'F3', 'F4'].includes(e.key)) {
+          return;
+        }
+      }
+
       if (e.key === 'F1') {
         e.preventDefault();
         useStore.getState().setCurrentPage('pos');

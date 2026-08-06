@@ -19,10 +19,12 @@ const SettingsPage = lazy(() => import('@/pages/SettingsPage'));
 const AuditPage = lazy(() => import('@/pages/AuditPage'));
 
 function App() {
-  const { currentUser, currentPage, setCurrentPage } = useStore();
+  const { currentUser, currentPage, setCurrentPage, isDbLoaded, initDbData } = useStore();
 
   useEffect(() => {
-    initializeData();
+    initDbData().then(() => {
+      initializeData();
+    });
     const savedUser = localStorage.getItem('pos_currentUser');
     if (savedUser) {
       try {
@@ -40,7 +42,7 @@ function App() {
     };
     window.addEventListener('online', handleOnline);
     return () => window.removeEventListener('online', handleOnline);
-  }, []);
+  }, [initDbData]);
 
   useEffect(() => {
     if (currentUser) {
@@ -57,6 +59,10 @@ function App() {
   }, [currentUser, currentPage, setCurrentPage]);
 
   const renderPage = () => {
+    if (!isDbLoaded) {
+      return <PageSkeleton />;
+    }
+
     if (!currentUser) {
       return <LoginPage />;
     }
@@ -76,6 +82,10 @@ function App() {
       default: return <DashboardPage />;
     }
   };
+
+  if (!isDbLoaded) {
+    return <PageSkeleton />;
+  }
 
   if (!currentUser) {
     return (
