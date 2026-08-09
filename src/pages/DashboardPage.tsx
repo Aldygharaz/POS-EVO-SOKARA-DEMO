@@ -4,7 +4,8 @@ import { useFormat } from '@/hooks/useFormat';
 import {
   TrendingUp, ShoppingCart, Package,
   AlertTriangle, Bell, ArrowUpRight, ArrowDownRight,
-  DollarSign, Receipt, BarChart3, PieChart as PieChartIcon
+  DollarSign, Receipt, BarChart3, PieChart as PieChartIcon,
+  Sparkles
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
@@ -322,10 +323,10 @@ export default function DashboardPage() {
                   </div>
                   <button 
                     onClick={() => setRestockProduct(prod)}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white text-xs px-2 py-1 rounded shadow-sm hover:bg-emerald-600 focus:opacity-100"
-                    title="✨ Auto-Fix Restock"
+                    className="opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white text-xs px-2 py-1 rounded shadow-sm hover:bg-emerald-600 focus:opacity-100 flex items-center gap-1"
+                    title="Auto-Fix Restock"
                   >
-                    ✨ Fix
+                    <Sparkles className="w-3 h-3" /> Fix
                   </button>
                 </div>
               </div>
@@ -343,7 +344,10 @@ export default function DashboardPage() {
           <div className="pos-card w-full max-w-sm p-6 relative overflow-hidden">
             {/* Modal Spotlight */}
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-400 to-teal-500" />
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-1">✨ Auto-Fix Restock</h3>
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-1 flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-emerald-500" />
+              Auto-Fix Restock
+            </h3>
             <p className="text-sm text-slate-500 mb-4">Stok <strong>{restockProduct.name}</strong> saat ini menipis ({restockProduct.currentStock} {restockProduct.unit}). Tambahkan stok instan.</p>
             
             <div className="mb-4">
