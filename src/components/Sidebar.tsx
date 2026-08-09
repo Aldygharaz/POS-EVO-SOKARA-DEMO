@@ -110,12 +110,13 @@ export default function Sidebar({ isMobileOpen, onMobileClose }: SidebarProps) {
       >
         {/* Logo */}
         <div className={`flex items-center gap-3 px-4 py-5 border-b border-slate-200 dark:border-slate-800 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
-          <div className="w-9 h-9 shrink-0 rounded-lg bg-emerald-600 dark:bg-emerald-500 flex items-center justify-center">
-            <Zap className="w-5 h-5 text-white dark:text-slate-900" />
+          <div className="w-9 h-9 shrink-0 flex items-center justify-center">
+            <img src="/brand/sokara-logomark-transparent-light.svg" alt="Sokara" className="w-8 h-8 dark:hidden block" />
+            <img src="/brand/sokara-logomark-transparent-dark.svg" alt="Sokara" className="w-8 h-8 hidden dark:block" />
           </div>
           {!isSidebarCollapsed && (
             <div className="min-w-0 flex-1 overflow-hidden transition-all">
-              <h1 className="text-base font-bold text-slate-900 dark:text-slate-100 tracking-tight truncate">Sokara POS</h1>
+              <h1 className="text-base font-semibold text-slate-900 dark:text-slate-100 tracking-[1px] truncate" style={{ fontFamily: 'Poppins, sans-serif' }}>Sokara POS</h1>
               <p className="text-[10px] text-emerald-500 font-semibold uppercase tracking-wider truncate">Sokara AI Enterprise</p>
             </div>
           )}

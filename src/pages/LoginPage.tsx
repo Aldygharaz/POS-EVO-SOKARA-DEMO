@@ -41,11 +41,9 @@ export default function LoginPage() {
 
       <div className="relative z-10 w-full max-w-md">
         {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 mb-4 shadow-[0_0_40px_rgba(16,185,129,0.3)] ring-1 ring-emerald-400/30">
-            <Zap className="w-8 h-8 text-white animate-pulse" />
-          </div>
-          <h1 className="text-3xl font-black text-slate-100 tracking-tight">Sokara POS</h1>
+        <div className="text-center mb-8 flex flex-col items-center">
+          <img src="/brand/sokara-logomark-transparent-dark.svg" alt="Sokara Logo" className="w-20 h-20 mb-4 drop-shadow-[0_0_20px_rgba(16,185,129,0.3)] animate-pulse" />
+          <h1 className="text-3xl font-black text-slate-100 tracking-tight" style={{ fontFamily: 'Poppins, sans-serif' }}>Sokara POS</h1>
           <p className="text-xs font-semibold text-emerald-400 tracking-widest uppercase mt-1">Sokara AI Enterprise Point of Sale</p>
         </div>
 
