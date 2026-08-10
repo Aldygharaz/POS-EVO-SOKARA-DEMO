@@ -14,7 +14,6 @@ import {
   LogOut,
   X,
   ChevronRight,
-  Zap,
   RotateCcw,
   PanelLeftClose,
   PanelLeftOpen

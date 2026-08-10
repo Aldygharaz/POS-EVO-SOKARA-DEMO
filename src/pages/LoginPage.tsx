@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useStore } from '@/store/useStore';
-import { Zap, Eye, EyeOff, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { Eye, EyeOff, ShieldCheck, AlertTriangle } from 'lucide-react';
 
 export default function LoginPage() {
   const { login, users } = useStore();
