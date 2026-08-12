@@ -16,8 +16,10 @@ import {
   ChevronRight,
   RotateCcw,
   PanelLeftClose,
-  PanelLeftOpen
+  PanelLeftOpen,
+  BookOpen
 } from 'lucide-react';
+import AppTooltip from '@/components/ui/AppTooltip';
 
 interface SidebarProps {
   isMobileOpen: boolean;
@@ -54,6 +56,7 @@ const menuGroups = [
     items: [
       { page: 'settings', label: 'Pengaturan', icon: Settings },
       { page: 'audit', label: 'Audit Log', icon: ShieldCheck },
+      { page: 'guidebook', label: 'Buku Panduan', icon: BookOpen },
     ],
   },
 ];
@@ -71,11 +74,10 @@ export default function Sidebar({ isMobileOpen, onMobileClose }: SidebarProps) {
     const isActive = currentPage === item.page;
     const Icon = item.icon;
 
-    return (
+    const btn = (
       <button
         key={item.page}
         onClick={() => handleNav(item.page)}
-        title={isSidebarCollapsed ? item.label : undefined}
         className={`relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group ${
           isSidebarCollapsed ? 'justify-center' : ''
         } ${
@@ -89,6 +91,16 @@ export default function Sidebar({ isMobileOpen, onMobileClose }: SidebarProps) {
         {!isSidebarCollapsed && isActive && <ChevronRight className="w-4 h-4 ml-auto text-emerald-600 dark:text-emerald-400" />}
       </button>
     );
+
+    if (isSidebarCollapsed) {
+      return (
+        <AppTooltip key={item.page} content={item.label} side="right">
+          {btn}
+        </AppTooltip>
+      );
+    }
+
+    return btn;
   };
 
   return (
@@ -120,13 +132,14 @@ export default function Sidebar({ isMobileOpen, onMobileClose }: SidebarProps) {
             </div>
           )}
           
-          <button 
-            onClick={toggleSidebarCollapse} 
-            className="hidden lg:flex text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 ml-auto shrink-0 transition-transform"
-            title={isSidebarCollapsed ? "Perluas Sidebar" : "Lipat Sidebar"}
-          >
-            {isSidebarCollapsed ? <PanelLeftOpen className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
-          </button>
+          <AppTooltip content={isSidebarCollapsed ? 'Perluas Sidebar' : 'Lipat Sidebar'} side="right" disabled={!isSidebarCollapsed}>
+            <button 
+              onClick={toggleSidebarCollapse} 
+              className="hidden lg:flex text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 ml-auto shrink-0 transition-transform"
+            >
+              {isSidebarCollapsed ? <PanelLeftOpen className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
+            </button>
+          </AppTooltip>
           <button onClick={onMobileClose} className="ml-auto lg:hidden text-slate-400 hover:text-slate-900 dark:hover:text-slate-100">
             <X className="w-5 h-5" />
           </button>
@@ -179,26 +192,28 @@ export default function Sidebar({ isMobileOpen, onMobileClose }: SidebarProps) {
         {/* Logout & Reset */}
         <div className="p-3 border-t border-slate-200/80 dark:border-slate-800/80 flex gap-2">
           {currentUser?.username === 'demo' && !isSidebarCollapsed && (
-            <button
-              onClick={() => {
-                if(confirm('Reset semua data ke versi awal?')) {
-                  useStore.getState().factoryReset();
-                }
-              }}
-              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:text-amber-500 dark:hover:text-amber-400 dark:hover:bg-amber-500/10 rounded-lg transition-colors border border-amber-500/20"
-              title="Factory Reset Data"
-            >
-              <RotateCcw className="w-4 h-4" />
-            </button>
+            <AppTooltip content="Factory Reset Data" side="top">
+              <button
+                onClick={() => {
+                  if(confirm('Reset semua data ke versi awal?')) {
+                    useStore.getState().factoryReset();
+                  }
+                }}
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:text-amber-500 dark:hover:text-amber-400 dark:hover:bg-amber-500/10 rounded-lg transition-colors border border-amber-500/20"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
+            </AppTooltip>
           )}
-          <button
-            onClick={() => useStore.setState({ currentUser: null })}
-            className={`flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:text-rose-500 dark:hover:text-rose-400 dark:hover:bg-rose-500/10 rounded-lg transition-colors ${currentUser?.username === 'demo' && !isSidebarCollapsed ? 'flex-[2]' : 'w-full'}`}
-            title="Logout"
-          >
-            <LogOut className="w-4 h-4 shrink-0" />
-            {!isSidebarCollapsed && <span>Logout</span>}
-          </button>
+          <AppTooltip content="Keluar dari akun" side={isSidebarCollapsed ? 'right' : 'top'}>
+            <button
+              onClick={() => useStore.setState({ currentUser: null })}
+              className={`flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:text-rose-500 dark:hover:text-rose-400 dark:hover:bg-rose-500/10 rounded-lg transition-colors ${currentUser?.username === 'demo' && !isSidebarCollapsed ? 'flex-[2]' : 'w-full'}`}
+            >
+              <LogOut className="w-4 h-4 shrink-0" />
+              {!isSidebarCollapsed && <span>Logout</span>}
+            </button>
+          </AppTooltip>
         </div>
       </aside>
     </>

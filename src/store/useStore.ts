@@ -106,6 +106,7 @@ const pagePermissions: Record<string, UserRole[]> = {
   settings: ['owner', 'admin'],
   audit: ['owner', 'admin'],
   users: ['owner', 'admin'],
+  guidebook: ['owner', 'admin', 'supervisor', 'kasir'],
 };
 
 // Ensure demo user exists in storage for smooth updates

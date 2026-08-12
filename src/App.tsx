@@ -16,6 +16,7 @@ const ReportsPage = lazy(() => import('@/pages/ReportsPage'));
 const AnalyticsPage = lazy(() => import('@/pages/AnalyticsPage'));
 const SettingsPage = lazy(() => import('@/pages/SettingsPage'));
 const AuditPage = lazy(() => import('@/pages/AuditPage'));
+const GuidebookPage = lazy(() => import('@/pages/GuidebookPage'));
 
 function App() {
   const { currentUser, currentPage, setCurrentPage, isDbLoaded, initDbData } = useStore();
@@ -76,6 +77,7 @@ function App() {
       case 'analytics': return <AnalyticsPage />;
       case 'settings': return <SettingsPage />;
       case 'audit': return <AuditPage />;
+      case 'guidebook': return <GuidebookPage />;
       default: return <DashboardPage />;
     }
   };
