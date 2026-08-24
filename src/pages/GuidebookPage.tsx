@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   BookOpen, ShoppingCart, Package, BarChart3, Users,
   Settings, Keyboard, ChevronDown, ChevronRight,
-  Monitor, Smartphone, Zap, Shield, Database, Wifi, WifiOff
+  Monitor, Zap, Shield, Database, Wifi, WifiOff
 } from 'lucide-react';
 
 interface GuideSection {

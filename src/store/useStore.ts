@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { User, Product, Category, Customer, Transaction, StockMutation, AuditLog, Supplier, Settings, BusinessTarget, CartItem, AlertItem, UserRole, CashierSession } from '@/types';
-import { getStoreData, saveStoreData, addStoreItem, updateStoreItem } from '@/lib/db';
-import { initializeData } from '@/data/seedData';
+import { getStoreData, saveStoreData, addStoreItem, updateStoreItem, initDB } from '@/lib/db';
+import { initializeData, SEED_VERSION, getFreshTransactions, getFreshStockMutations, getFreshAuditLogs, getFreshBusinessTargets } from '@/data/seedData';
 
 interface SyncPayload {
   action: string;
@@ -173,6 +173,36 @@ export const useStore = create<POSStore>((set, get) => ({
 
   initDbData: async () => {
     try {
+      const storedVersion = localStorage.getItem('pos_seed_version');
+      const isNewVersion = storedVersion !== SEED_VERSION;
+
+      if (isNewVersion) {
+        initializeData(true);
+        const freshTransactions = getFreshTransactions();
+        const freshStockMutations = getFreshStockMutations();
+        const freshAuditLogs = getFreshAuditLogs();
+        const freshTargets = getFreshBusinessTargets();
+
+        await saveStoreData('transactions', freshTransactions);
+        await saveStoreData('stockMutations', freshStockMutations);
+        await saveStoreData('auditLogs', freshAuditLogs);
+
+        set({
+          users: loadFromStorage('pos_users', []),
+          products: loadFromStorage('pos_products', []),
+          categories: loadFromStorage('pos_categories', []),
+          customers: loadFromStorage('pos_customers', []),
+          suppliers: loadFromStorage('pos_suppliers', []),
+          settings: loadFromStorage('pos_settings', migratedSettings),
+          businessTargets: freshTargets,
+          transactions: freshTransactions,
+          stockMutations: freshStockMutations,
+          auditLogs: freshAuditLogs,
+          isDbLoaded: true
+        });
+        return;
+      }
+
       // Migrate existing local storage data to indexedDB if needed
       let transactions = loadFromStorage<Transaction[]>('pos_transactions', []);
       let stockMutations = loadFromStorage<StockMutation[]>('pos_stockMutations', []);
@@ -182,23 +212,29 @@ export const useStore = create<POSStore>((set, get) => ({
       const dbStockMutations = await getStoreData<StockMutation>('stockMutations');
       const dbAuditLogs = await getStoreData<AuditLog>('auditLogs');
 
-      if (dbTransactions.length === 0 && transactions.length > 0) {
-        await saveStoreData('transactions', transactions);
+      if (dbTransactions.length === 0) {
+        const freshTransactions = transactions.length > 0 ? transactions : getFreshTransactions();
+        await saveStoreData('transactions', freshTransactions);
         localStorage.removeItem('pos_transactions');
+        transactions = freshTransactions;
       } else {
         transactions = dbTransactions;
       }
 
-      if (dbStockMutations.length === 0 && stockMutations.length > 0) {
-        await saveStoreData('stockMutations', stockMutations);
+      if (dbStockMutations.length === 0) {
+        const freshMutations = stockMutations.length > 0 ? stockMutations : getFreshStockMutations();
+        await saveStoreData('stockMutations', freshMutations);
         localStorage.removeItem('pos_stockMutations');
+        stockMutations = freshMutations;
       } else {
         stockMutations = dbStockMutations;
       }
 
-      if (dbAuditLogs.length === 0 && auditLogs.length > 0) {
-        await saveStoreData('auditLogs', auditLogs);
+      if (dbAuditLogs.length === 0) {
+        const freshAudit = auditLogs.length > 0 ? auditLogs : getFreshAuditLogs();
+        await saveStoreData('auditLogs', freshAudit);
         localStorage.removeItem('pos_auditLogs');
+        auditLogs = freshAudit;
       } else {
         auditLogs = dbAuditLogs;
       }
@@ -766,8 +802,19 @@ export const useStore = create<POSStore>((set, get) => ({
     return pagePermissions[permission]?.includes(user.role) ?? false;
   },
 
-  factoryReset: () => {
+  factoryReset: async () => {
     localStorage.clear();
+    try {
+      const db = await initDB();
+      const tx = db.transaction(['transactions', 'stockMutations', 'auditLogs'], 'readwrite');
+      await tx.objectStore('transactions').clear();
+      await tx.objectStore('stockMutations').clear();
+      await tx.objectStore('auditLogs').clear();
+      await tx.done;
+    } catch (e) {
+      console.error("Failed to clear IDB in factory reset", e);
+    }
+    initializeData(true);
     window.location.reload();
   }
 }));
