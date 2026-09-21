@@ -15,7 +15,7 @@ window.addEventListener('unhandledrejection', e => {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
-      <ThemeProvider attribute="class" defaultTheme="light" disableTransitionOnChange>
+      <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
         <App />
       </ThemeProvider>
     </BrowserRouter>
