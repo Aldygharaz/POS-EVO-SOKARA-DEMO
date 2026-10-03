@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/Tooltip';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 interface AppTooltipProps {
   children: ReactNode;
