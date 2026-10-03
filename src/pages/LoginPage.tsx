@@ -57,12 +57,12 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="text-center mb-8 flex flex-col items-center">
           <img
-            src="/brand/sokara-logomark-transparent-light.svg"
+            src="/brand/sokara-logomark-transparent-dark.svg"
             alt="Sokara Logo"
             className="w-20 h-20 mb-4 drop-shadow-md dark:hidden"
           />
           <img
-            src="/brand/sokara-logomark-transparent-dark.svg"
+            src="/brand/sokara-logomark-transparent-light.svg"
             alt="Sokara Logo"
             className="w-20 h-20 mb-4 drop-shadow-[0_0_20px_rgba(16,185,129,0.3)] hidden dark:block animate-pulse"
           />

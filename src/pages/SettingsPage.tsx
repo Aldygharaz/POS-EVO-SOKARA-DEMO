@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { useFormat } from '@/hooks/useFormat';
-import { Store, Percent, FileText, Save, AlertTriangle, Target, Link2, Users, Database, Trash2, Key, UserPlus, X } from 'lucide-react';
+import { useTheme } from 'next-themes';
+import { Store, Percent, FileText, Save, AlertTriangle, Target, Link2, Users, Database, Trash2, Key, UserPlus, X, Sun, Moon, Palette } from 'lucide-react';
 import { resetDatabase } from '@/data/seedData';
 import type { UserRole } from '@/types';
 import { toast } from 'sonner';
@@ -9,6 +10,7 @@ import { toast } from 'sonner';
 export default function SettingsPage() {
   const { settings, updateSettings, currentUser, addAuditLog, users, updateUser, addUser } = useStore();
   const { generateId } = useFormat();
+  const { theme, setTheme } = useTheme();
 
   const [form, setForm] = useState({ ...settings });
   const [saved, setSaved] = useState(false);
@@ -32,6 +34,63 @@ export default function SettingsPage() {
       <div>
         <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Pengaturan</h2>
         <p className="text-sm text-gray-500 mt-0.5">Konfigurasi aplikasi POS</p>
+      </div>
+
+      {/* Theme & Appearance */}
+      <div className="pos-card p-5">
+        <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-2 flex items-center gap-2">
+          <Palette className="w-4 h-4 text-emerald-600 dark:text-emerald-500" />
+          Tema &amp; Tampilan
+        </h3>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+          Pilih tema visual antarmuka sistem POS. Mode Terang disetel sebagai standar operasional kasir.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => setTheme('light')}
+            className={`flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all ${
+              theme === 'light'
+                ? 'border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/20 shadow-sm ring-1 ring-emerald-500'
+                : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-slate-900'
+            }`}
+          >
+            <div className={`p-2 rounded-lg ${theme === 'light' ? 'bg-emerald-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}>
+              <Sun className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-sm text-slate-900 dark:text-slate-100">Mode Terang</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded font-bold bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400">
+                  Default
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                Tampilan bersih &amp; kontras tinggi untuk kasir siang hari.
+              </p>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setTheme('dark')}
+            className={`flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all ${
+              theme === 'dark'
+                ? 'border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/20 shadow-sm ring-1 ring-emerald-500'
+                : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-slate-900'
+            }`}
+          >
+            <div className={`p-2 rounded-lg ${theme === 'dark' ? 'bg-emerald-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}>
+              <Moon className="w-5 h-5" />
+            </div>
+            <div>
+              <span className="font-semibold text-sm text-slate-900 dark:text-slate-100">Mode Gelap</span>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                Tampilan minim silau mata untuk shift malam atau redup.
+              </p>
+            </div>
+          </button>
+        </div>
       </div>
 
       {/* Store Info */}

@@ -1,11 +1,27 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="light" style="color-scheme: light;">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/png" sizes="32x32" href="/brand/favicon-32x32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/brand/apple-touch-icon-180x180.png">
     <title>Sokara POS</title>
+    <script>
+      (function() {
+        try {
+          const theme = localStorage.getItem('sokara_pos_theme') || 'light';
+          if (theme === 'dark') {
+            document.documentElement.classList.add('dark');
+            document.documentElement.classList.remove('light');
+            document.documentElement.style.colorScheme = 'dark';
+          } else {
+            document.documentElement.classList.add('light');
+            document.documentElement.classList.remove('dark');
+            document.documentElement.style.colorScheme = 'light';
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
